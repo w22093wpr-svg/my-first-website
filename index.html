@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FamilyControl - 應急純淨版</title>
+    <title>FamilyControl</title>
+
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZhbWlseUNvbnRyb2wiLAogICJzaG9ydF9uYW1lIjogIkZhbWlseUNvbnRyb2wiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwMDAwMCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDAwMDAiCn0=">
 
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FamilyControl">
     
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
@@ -37,7 +40,7 @@
         <div class="max-w-md mx-auto space-y-6">
             <header class="border-b border-slate-700 pb-4">
                 <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
-                <p class="text-xs text-slate-400 mt-1">新加坡節點 · 純淨應急版本</p>
+                <p class="text-xs text-slate-400 mt-1">新加坡節點 · 強制全螢幕版本</p>
             </header>
 
             <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
@@ -76,10 +79,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <script>
-        // 1. 綁定你的特定目標裝置 Token
         const TARGET_TOKEN = "TKeJ2mKK3Uqaw5K6suxeJvCCUyZhR5rtCJntNfnz";
 
-        // 2. 指向你的新加坡實時資料庫網址
         const firebaseConfig = {
             databaseURL: "https://crested-guru-452314-r3-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
@@ -97,7 +98,6 @@
             initChildListener();
         }
 
-        // 【小孩端：即時接收狀態】
         function initChildListener() {
             db.ref('deviceState').on('value', (snapshot) => {
                 const data = snapshot.val();
@@ -112,7 +112,6 @@
                     lockScreen.classList.remove('hidden');
                     document.body.classList.add('no-scroll');
                     
-                    // 判斷是否為純黑屏（如果標題與內容皆為空字串）
                     if (data.title === "" && data.message === "") {
                         lockIcon.style.display = "none";
                         lockTitle.innerText = "";
@@ -129,11 +128,9 @@
             });
         }
 
-        // 【家長端：讀取輸入框並發送】
         function sendCustomText() {
             const titleInput = document.getElementById('custom-title').value.trim();
             const msgInput = document.getElementById('custom-msg').value.trim();
-            
             if (!titleInput) {
                 alert("請至少輸入一個大標題！");
                 return;
@@ -141,7 +138,6 @@
             directLock(titleInput, msgInput);
         }
 
-        // 【家長端：核心直連寫入資料庫功能】
         function directLock(title, message) {
             db.ref('deviceState').set({
                 isLocked: true,
