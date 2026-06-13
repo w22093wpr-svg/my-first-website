@@ -27,10 +27,15 @@
         </div>
     </div>
 
-    <!-- 家長端控制台 (保留你原有的核心功能與版面) -->
+    <!-- 家長端控制台 -->
     <div id="parent-view" class="hidden min-h-screen bg-slate-900 text-white p-6">
         <div class="max-w-md mx-auto space-y-6">
             <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
+            <!-- 狀態顯示區 -->
+            <div id="status-display" class="bg-slate-800 p-4 rounded-xl border border-slate-600 text-center">
+                <p class="text-xs text-slate-400">子女目前狀態</p>
+                <p id="status-text" class="text-lg font-bold text-white">讀取中...</p>
+            </div>
             <button onclick="directUnlock()" class="w-full bg-emerald-600 p-4 rounded-xl font-bold">🔓 解除鎖定</button>
             <div class="bg-slate-800 p-5 rounded-2xl space-y-3">
                 <input type="text" id="custom-title" placeholder="標題" class="w-full bg-slate-700 p-3 rounded-lg text-white">
@@ -49,8 +54,18 @@
         const db = firebase.initializeApp({databaseURL: "https://crested-guru-452314-r3-default-rtdb.asia-southeast1.firebasedatabase.app"}).database();
 
         const role = new URLSearchParams(window.location.search).get('role');
+        const lockScreen = document.getElementById('lock-screen');
+
         if (role === 'parent') {
             document.getElementById('parent-view').classList.remove('hidden');
+            // 家長端監聽小孩狀態
+            db.ref('deviceState').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.targetToken === TARGET_TOKEN) {
+                    document.getElementById('status-text').innerText = data.isLocked ? "⚫ 目前黑屏鎖定中" : "🟢 正常使用中";
+                    document.getElementById('status-text').className = data.isLocked ? "text-lg font-bold text-red-500" : "text-lg font-bold text-green-500";
+                }
+            });
         } else {
             document.getElementById('child-view').classList.remove('hidden');
             initChildListener();
@@ -61,19 +76,13 @@
                 const data = snapshot.val();
                 if (!data || data.targetToken !== TARGET_TOKEN) return;
 
-                const lockScreen = document.getElementById('lock-screen');
                 if (data.isLocked) {
                     lockScreen.classList.remove('hidden');
                     document.body.classList.add('no-scroll');
-                    document.getElementById('lock-title').innerText = data.title;
-                    document.getElementById('lock-msg').innerText = data.message;
+                    document.getElementById('lock-title').innerText = data.title || "";
+                    document.getElementById('lock-msg').innerText = data.message || "";
                     
-                    // 【App 專用大絕】
-                    // 只要處於鎖定狀態，每秒鐘向 App Inventor 瘋狂發送包含內容的暗號！
-                    if (window.AppInventor) {
-                        const alertText = (data.title || "警告") + " | " + (data.message || "設備已被鎖定");
-                        window.AppInventor.setWebViewString("NOTIFY:" + alertText);
-                    }
+                    if (window.AppInventor) window.AppInventor.setWebViewString("NOTIFY");
                 } else {
                     lockScreen.classList.add('hidden');
                     document.body.classList.remove('no-scroll');
@@ -83,8 +92,8 @@
         }
 
         function sendCustomText() { directLock(document.getElementById('custom-title').value, document.getElementById('custom-msg').value); }
-        function directLock(t, m) { db.ref('deviceState').set({isLocked: true, targetToken: TARGET_TOKEN, title: t, message: m, updatedAt: Date.now()}); }
-        function directUnlock() { db.ref('deviceState').set({isLocked: false, targetToken: TARGET_TOKEN}); }
+        function directLock(t, m) { db.ref('deviceState').update({isLocked: true, title: t, message: m, updatedAt: Date.now()}); }
+        function directUnlock() { db.ref('deviceState').update({isLocked: false}); }
     </script>
 </body>
 </html>
