@@ -5,11 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FamilyControl</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <style>.no-scroll { overflow: hidden; touch-action: none; }</style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
 
-    <!-- 小孩端正常畫面 -->
+    <!-- =================【小孩端正常畫面：永遠保留在這裡】================= -->
     <div id="child-view" class="hidden min-h-screen flex flex-col items-center justify-center p-4">
         <div class="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
             <div class="animate-pulse text-green-500 text-5xl mb-4">💚</div>
@@ -18,29 +17,42 @@
         </div>
     </div>
 
-    <!-- 鎖定層 -->
-    <div id="lock-screen" class="hidden fixed inset-0 bg-black z-50 flex flex-col items-center justify-center text-white p-6 no-scroll">
-        <div class="text-center space-y-4">
-            <span id="lock-icon" class="text-6xl mb-2 block animate-bounce">⚠️</span>
-            <h1 id="lock-title" class="text-3xl font-extrabold tracking-wider text-red-500"></h1>
-            <p id="lock-msg" class="text-lg text-gray-300 px-4 animate-pulse"></p>
-        </div>
-    </div>
+    <!-- ⚠️ 注意：原本的 <div id="lock-screen"> 全黑屏層已經被我徹底刪除了！ -->
 
-    <!-- 家長端控制台 (保留你原有的核心功能與版面) -->
+    <!-- =================【家長端控制台：功能完美保留】================= -->
     <div id="parent-view" class="hidden min-h-screen bg-slate-900 text-white p-6">
         <div class="max-w-md mx-auto space-y-6">
-            <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
-            <button onclick="directUnlock()" class="w-full bg-emerald-600 p-4 rounded-xl font-bold">🔓 解除鎖定</button>
-            <div class="bg-slate-800 p-5 rounded-2xl space-y-3">
-                <input type="text" id="custom-title" placeholder="標題" class="w-full bg-slate-700 p-3 rounded-lg text-white">
-                <input type="text" id="custom-msg" placeholder="內容" class="w-full bg-slate-700 p-3 rounded-lg text-white">
-                <button onclick="sendCustomText()" class="w-full bg-amber-500 p-3 rounded-lg text-black font-bold">🔒 發送並鎖定</button>
+            <header class="border-b border-slate-700 pb-4">
+                <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
+                <p class="text-xs text-slate-400 mt-1">新加坡節點 · 純通知震動版本</p>
+            </header>
+
+            <!-- 解除按鈕 -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700">
+                <button onclick="directUnlock()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 transition text-white font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                    <span>🔓 解除鎖定與震動</span>
+                </button>
             </div>
-            <button onclick="directLock('', '')" class="w-full bg-purple-600 p-3 rounded-lg font-bold">⚫ 完全純黑屏</button>
+
+            <!-- 發送警告文字（觸發震動與彈窗） -->
+            <div class="bg-slate-800 p-5 rounded-2xl border border-slate-700 space-y-3">
+                <h2 class="text-sm font-semibold text-amber-400 uppercase tracking-wider">✍️ 發送警告通知 (觸發原生震動+彈窗)</h2>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">通知大標題</label>
+                    <input type="text" id="custom-title" placeholder="例如：唔好再打機！" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">通知小提示內容</label>
+                    <input type="text" id="custom-msg" placeholder="例如：乖乖地去做工作紙！" class="w-full bg-slate-700 border border-slate-600 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none">
+                </div>
+                <button onclick="sendCustomText()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold py-3 rounded-xl transition text-sm">
+                    ⚡ 發送警告並強制震動
+                </button>
+            </div>
         </div>
     </div>
 
+    <!-- 引入 Firebase Web SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
@@ -61,31 +73,27 @@
                 const data = snapshot.val();
                 if (!data || data.targetToken !== TARGET_TOKEN) return;
 
-                const lockScreen = document.getElementById('lock-screen');
                 if (data.isLocked) {
-                    lockScreen.classList.remove('hidden');
-                    document.body.classList.add('no-scroll');
-                    document.getElementById('lock-title').innerText = data.title;
-                    document.getElementById('lock-msg').innerText = data.message;
-                    
-                    // 【App 專用大絕】
-                    // 只要處於鎖定狀態，每秒鐘向 App Inventor 瘋狂發送包含內容的暗號！
+                    // 核心修改：不再顯示黑屏，直接把警告文字打包發送給 MIT App Inventor！
                     if (window.AppInventor) {
-                        const alertText = (data.title || "警告") + " | " + (data.message || "設備已被鎖定");
+                        const alertText = (data.title || "家長警告") + "：" + (data.message || "請注意時間！");
                         window.AppInventor.setWebViewString("NOTIFY:" + alertText);
                     }
                 } else {
-                    lockScreen.classList.add('hidden');
-                    document.body.classList.remove('no-scroll');
                     if (window.AppInventor) window.AppInventor.setWebViewString("UNLOCK");
                 }
             });
         }
 
-        function sendCustomText() { directLock(document.getElementById('custom-title').value, document.getElementById('custom-msg').value); }
+        function sendCustomText() { 
+            const titleInput = document.getElementById('custom-title').value.trim();
+            const msgInput = document.getElementById('custom-msg').value.trim();
+            if (!titleInput) { alert("請至少輸入一個大標題！"); return; }
+            directLock(titleInput, msgInput); 
+        }
+        
         function directLock(t, m) { db.ref('deviceState').set({isLocked: true, targetToken: TARGET_TOKEN, title: t, message: m, updatedAt: Date.now()}); }
-        function directUnlock() { db.ref('deviceState').set({isLocked: false, targetToken: TARGET_TOKEN}); }
+        function directUnlock() { db.ref('deviceState').set({isLocked: false, targetToken: TARGET_TOKEN, title: "", message: "", updatedAt: Date.now()}); }
     </script>
 </body>
 </html>
-
