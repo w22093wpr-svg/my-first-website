@@ -4,19 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FamilyControl</title>
-    <!-- 強制全螢幕憑證 -->
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZhbWlseUNvbnRyb2wiLAogICJzaG9ydF9uYW1lIjogIkZhbWlseUNvbnRyb2wiLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwMDAwMCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDAwMDAiCn0=">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>.no-scroll { overflow: hidden; touch-action: none; }</style>
 </head>
 <body class="bg-gray-100 font-sans antialiased">
 
-    <!-- 小孩端 -->
+    <!-- 小孩端正常畫面 -->
     <div id="child-view" class="hidden min-h-screen flex flex-col items-center justify-center p-4">
         <div class="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
             <div class="animate-pulse text-green-500 text-5xl mb-4">💚</div>
             <h1 class="text-xl font-bold text-gray-800 mb-2">系統守護中</h1>
-            <p class="text-sm text-gray-500">連線已啟動</p>
+            <p class="text-sm text-gray-500">App 專用直連通道已就緒</p>
         </div>
     </div>
 
@@ -29,7 +27,7 @@
         </div>
     </div>
 
-    <!-- 家長端控制台 (保持你原本的所有功能) -->
+    <!-- 家長端控制台 (保留你原有的核心功能與版面) -->
     <div id="parent-view" class="hidden min-h-screen bg-slate-900 text-white p-6">
         <div class="max-w-md mx-auto space-y-6">
             <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
@@ -70,16 +68,16 @@
                     document.getElementById('lock-title').innerText = data.title;
                     document.getElementById('lock-msg').innerText = data.message;
                     
-                    // 【通知機制】
-                    if ("vibrate" in navigator) navigator.vibrate([1000, 500, 1000]);
-                    if ("Notification" in window && Notification.permission === "granted") {
-                        new Notification(data.title || "系統通知", { body: data.message });
+                    // 【App 專用大絕】
+                    // 只要處於鎖定狀態，每秒鐘向 App Inventor 瘋狂發送包含內容的暗號！
+                    if (window.AppInventor) {
+                        const alertText = (data.title || "警告") + " | " + (data.message || "設備已被鎖定");
+                        window.AppInventor.setWebViewString("NOTIFY:" + alertText);
                     }
-                    // 【App Inventor 暗號】
-                    if (window.AppInventor) window.AppInventor.setWebViewString("LOCK");
                 } else {
                     lockScreen.classList.add('hidden');
                     document.body.classList.remove('no-scroll');
+                    if (window.AppInventor) window.AppInventor.setWebViewString("UNLOCK");
                 }
             });
         }
@@ -90,3 +88,4 @@
     </script>
 </body>
 </html>
+
