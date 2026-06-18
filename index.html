@@ -2,13 +2,13 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>我的 App 功能監察系統</title>
+    <title>App 內部功能自動監察系統</title>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        // 你的專屬資料庫
+        // 使用你的專屬資料庫網址
         const firebaseConfig = {
             databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
@@ -16,55 +16,59 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // ==========================================
-        // 1. 小朋友端：點擊切換任何功能（無限參數，傳什麼就寫入什麼）
-        // ==========================================
-        window.switchFunction = function(anyFeature) {
-            // anyFeature 就是你說的無限參數，帶入什麼功能名稱，資料庫就同步什麼
-            set(ref(database, 'current_status/activeFeature'), anyFeature)
-            .then(() => console.log("App 成功同步功能:", anyFeature))
+        // =======================================================
+        // 核心 JS 函數：由你的 App 內部自動觸發，小朋友無法自己選
+        // =======================================================
+        window.switchFunction = function(currentFunction) {
+            // currentFunction 是無限參數，App 自動帶入什麼，資料庫就記錄什麼
+            set(ref(database, 'current_status/activeFeature'), currentFunction)
+            .then(() => console.log("【App 自動同步成功】當前功能參數：", currentFunction))
             .catch((error) => console.error("同步失敗:", error));
         }
 
-        // ==========================================
-        // 2. 管理員判斷：檢查網址後面有沒有加 admin 英文
-        // ==========================================
-        // 獲取目前網址的參數 (例如：index.html?role=admin)
+        // =======================================================
+        // 角色判斷邏輯：檢查網址後面有沒有加管理員的英文 ?admin=true
+        // =======================================================
         const urlParams = new URLSearchParams(window.location.search);
-        const role = urlParams.get('role'); // 撈取 role 的數值
+        const isAdmin = urlParams.get('admin'); // 撈取網址後方的 admin 參數
 
-        // 如果網址後面有加管理員英文 admin，就啟動監察端參數
-        if (role === 'admin') {
-            let adminScreen = ''; // 管理員監察用的變數
-            
-            // 顯示管理員專屬後台畫面
-            document.getElementById("admin-view").style.display = "block";
+        if (isAdmin === 'true') {
+            // 【管理員模式】：隱藏原本的 App 內容，變身成即時監察面板
+            window.addEventListener('DOMContentLoaded', () => {
+                document.getElementById("app-content").style.display = "none";
+                document.getElementById("admin-monitor-screen").style.display = "block";
+            });
 
-            // 即時讀取與監察
+            // 即時讀取資料庫的數值
             const statusRef = ref(database, 'current_status/activeFeature');
             onValue(statusRef, (snapshot) => {
-                adminScreen = snapshot.val() || "無";
-                document.getElementById("admin-monitor").innerText = adminScreen;
-                console.log("【管理員即時監察】:", adminScreen);
+                const currentActive = snapshot.val() || "無資料";
+                document.getElementById("admin-display").innerText = currentActive;
+            });
+        } else {
+            // 【小朋友模式】：網頁載入時，由 App 內部自動呼叫函數發送參數
+            // 這裡可以改成你 App 內部切換頁面的邏輯
+            window.addEventListener('DOMContentLoaded', () => {
+                // 舉例：App 此時載入了音樂功能，就自動觸發，帶入無限參數
+                switchFunction('music'); 
             });
         }
     </script>
 </head>
-<body style="font-family: sans-serif; padding: 20px;">
+<body style="font-family: sans-serif; padding: 20px; margin: 0;">
 
-    <div style="background: #f0fdf4; padding: 20px; border-radius: 8px;">
-        <h3>【App 內嵌功能（小朋友點擊）】</h3>
-        <button onclick="switchFunction('crazygame')">瘋狂遊戲</button>
-        <button onclick="switchFunction('youtube')">YouTube 影片</button>
-        <button onclick="switchFunction('music')">音樂功能</button>
-        <button onclick="switchFunction('anyNewFeature')">未來新增的無限功能參數</button>
+    <div id="app-content" style="display: block; text-align: center; padding-top: 50px;">
+        <h2>App 內嵌功能正在運行中...</h2>
+        <p style="color: #666;">（小朋友正在使用此功能，一切狀態自動同步，無手動選項）</p>
     </div>
 
-    <div id="admin-view" style="display: none; background: #fef2f2; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 5px solid #ef4444;">
-        <h3>【管理員監察後台 (Admin Mode)】</h3>
-        <p style="font-size: 1.2em;">
-            即時監控畫面 ➔ 目前正在使用：
-            <strong id="admin-monitor" style="color: #ef4444; font-size: 1.5em;">連線中...</strong>
+    <div id="admin-monitor-screen" style="display: none; background: #fef2f2; padding: 30px; border-radius: 12px; border: 2px solid #ef4444; max-width: 500px; margin: 50px auto;">
+        <h2 style="color: #b91c1c; margin-top: 0;">🛡️ 管理員即時監察端</h2>
+        <p style="font-size: 1.1em; color: #4b5563;">目前連線：chloe-2c627</p>
+        <hr style="border-color: #fca5a5;">
+        <p style="font-size: 1.3em; font-weight: bold; color: #1f2937;">
+            小朋友目前正在使用：<br>
+            <span id="admin-display" style="font-size: 2em; color: #ef4444; block; margin-top: 10px;">載入中...</span>
         </p>
     </div>
 
