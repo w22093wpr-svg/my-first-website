@@ -2,76 +2,156 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>App 內部功能自動監察系統</title>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 角色分流與即時同步系統</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background-color 0.3s ease;
+            background-color: #f0f4f8;
+            color: #333;
+        }
 
-        // 使用你的專屬資料庫網址
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 { margin-top: 0; }
+
+        /* 小朋友模式樣式 */
+        .child-mode {
+            background-color: #e3f2fd;
+        }
+        .btn {
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 80%;
+        }
+        .btn:hover { background-color: #1565c0; transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+
+        /* 管理員模式樣式 */
+        .admin-mode {
+            background-color: #ffebee;
+        }
+        .admin-panel {
+            border: 3px dashed #d32f2f;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 12px;
+        }
+        .status-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: #d32f2f;
+            margin: 20px 0;
+            padding: 10px;
+            background: #ffebee;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="childView" class="container child-mode" style="display: none;">
+        <h1>👦 小朋友模式</h1>
+        <p>點擊下方按鈕切換功能，管理員端將會秒速同步！</p>
+        <button class="btn" onclick="switchFunction('crazygame')">🎮 啟動 Crazy Game</button>
+        <button class="btn" onclick="switchFunction('youtube')">📺 開啟 YouTube</button>
+        <button class="btn" onclick="switchFunction('music')">🎵 播放音樂</button>
+        <button class="btn" onclick="switchFunction('future-magic-' + Math.floor(Math.random()*100))">✨ 隨機未來新功能</button>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">提示：在網址後面加上 <code>?role=admin</code> 即可切換到管理員監察端</p>
+    </div>
+
+    <div id="adminView" class="container admin-mode" style="display: none;">
+        <div class="admin-panel">
+            <h1 style="color: #d32f2f;">🚨 管理員即時監察端</h1>
+            <p>正在即時監控小朋友的當前功能...</p>
+            <hr style="border: 0; border-top: 1px solid #ffcdd2;">
+            <p>目前活躍功能（activeFeature）：</p>
+            <div id="currentStatus" class="status-display">載入中...</div>
+            <p style="font-size: 12px; color: #666;">⏱ 狀態由 Firebase 隔空不到一秒內秒速同步</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // 1. Firebase 基礎配置
         const firebaseConfig = {
             databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
+        // 初始化 Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
+        const statusRef = ref(database, 'current_status/activeFeature');
 
-        // =======================================================
-        // 核心 JS 函數：由你的 App 內部自動觸發，小朋友無法自己選
-        // =======================================================
+        // 2. 核心功能函數：無限擴充的自動同步參數
         window.switchFunction = function(currentFunction) {
-            // currentFunction 是無限參數，App 自動帶入什麼，資料庫就記錄什麼
-            set(ref(database, 'current_status/activeFeature'), currentFunction)
-            .then(() => console.log("【App 自動同步成功】當前功能參數：", currentFunction))
-            .catch((error) => console.error("同步失敗:", error));
+            console.log(`[系統通知] 正在切換並同步功能至: ${currentFunction}`);
+            
+            // 將最新的狀態數值，寫入 Firebase 指定路徑
+            set(statusRef, currentFunction)
+                .then(() => {
+                    console.log("同步成功！");
+                })
+                .catch((error) => {
+                    console.error("同步失敗:", error);
+                });
+        };
+
+        // 3. 角色分流邏輯與介面控制
+        function initApp() {
+            // 解析網址參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const role = urlParams.get('role');
+
+            if (role === 'admin') {
+                // 【管理員監察模式】
+                document.body.style.backgroundColor = "#ffcdd2"; // 變身為紅色系背景
+                document.getElementById('adminView').style.display = 'block';
+                
+                // 啟用 Firebase onValue 監聽功能，一有變動秒速更新
+                onValue(statusRef, (snapshot) => {
+                    const data = snapshot.val();
+                    document.getElementById('currentStatus').innerText = data ? data : '尚無資料';
+                });
+            } else {
+                // 【小朋友模式】（預設內嵌功能模式）
+                document.body.style.backgroundColor = "#e1f5fe"; // 藍色系背景
+                document.getElementById('childView').style.display = 'block';
+                
+                // 網頁自動載入時，預設觸發一次初始功能
+                switchFunction('home');
+            }
         }
 
-        // =======================================================
-        // 角色判斷邏輯：檢查網址後面有沒有加管理員的英文 ?admin=true
-        // =======================================================
-        const urlParams = new URLSearchParams(window.location.search);
-        const isAdmin = urlParams.get('admin'); // 撈取網址後方的 admin 參數
-
-        if (isAdmin === 'true') {
-            // 【管理員模式】：隱藏原本的 App 內容，變身成即時監察面板
-            window.addEventListener('DOMContentLoaded', () => {
-                document.getElementById("app-content").style.display = "none";
-                document.getElementById("admin-monitor-screen").style.display = "block";
-            });
-
-            // 即時讀取資料庫的數值
-            const statusRef = ref(database, 'current_status/activeFeature');
-            onValue(statusRef, (snapshot) => {
-                const currentActive = snapshot.val() || "無資料";
-                document.getElementById("admin-display").innerText = currentActive;
-            });
-        } else {
-            // 【小朋友模式】：網頁載入時，由 App 內部自動呼叫函數發送參數
-            // 這裡可以改成你 App 內部切換頁面的邏輯
-            window.addEventListener('DOMContentLoaded', () => {
-                // 舉例：App 此時載入了音樂功能，就自動觸發，帶入無限參數
-                switchFunction('music'); 
-            });
-        }
+        // 執行初始化
+        initApp();
     </script>
-</head>
-<body style="font-family: sans-serif; padding: 20px; margin: 0;">
-
-    <div id="app-content" style="display: block; text-align: center; padding-top: 50px;">
-        <h2>App 內嵌功能正在運行中...</h2>
-        <p style="color: #666;">（小朋友正在使用此功能，一切狀態自動同步，無手動選項）</p>
-    </div>
-
-    <div id="admin-monitor-screen" style="display: none; background: #fef2f2; padding: 30px; border-radius: 12px; border: 2px solid #ef4444; max-width: 500px; margin: 50px auto;">
-        <h2 style="color: #b91c1c; margin-top: 0;">🛡️ 管理員即時監察端</h2>
-        <p style="font-size: 1.1em; color: #4b5563;">目前連線：chloe-2c627</p>
-        <hr style="border-color: #fca5a5;">
-        <p style="font-size: 1.3em; font-weight: bold; color: #1f2937;">
-            小朋友目前正在使用：<br>
-            <span id="admin-display" style="font-size: 2em; color: #ef4444; block; margin-top: 10px;">載入中...</span>
-        </p>
-    </div>
-
 </body>
 </html>
 
