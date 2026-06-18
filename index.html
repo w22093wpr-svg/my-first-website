@@ -1,231 +1,247 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 無限自訂參數與斷點續記系統</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f0f4f8;
-            color: #333;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>動態監控系統</title>
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --bg-color: #f5f7fa;
+      --card-bg: #ffffff;
+      --text-color: #333333;
+    }
+    
+    /* 管理員端紅色系面板 */
+    body.role-admin {
+      --primary-color: #e53935;
+      --bg-color: #ffebee;
+      --card-bg: #ffffff;
+      --text-color: #212121;
+    }
 
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            text-align: center;
-            max-width: 500px;
-            width: 100%;
-        }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      transition: background-color 0.3s ease;
+    }
 
-        /* 小朋友模式樣式 */
-        .child-mode { background-color: #e3f2fd; }
-        .status-box {
-            background: #fff;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
-        }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
 
-        /* 管理員監察模式樣式 */
-        .admin-mode { background-color: #ffebee; max-width: 550px; }
-        .admin-panel {
-            border: 3px dashed #d32f2f;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 12px;
-            text-align: left;
-        }
-        
-        .time-banner {
-            font-size: 28px;
-            font-weight: bold;
-            color: #e65100;
-            background: #fff3e0;
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            margin: 15px 0;
-            font-family: monospace;
-        }
+    /* 角色視圖控制 */
+    .view-section { display: none; }
+    body.role-child #child-view { display: block; }
+    body.role-admin #admin-view { display: block; }
 
-        /* 動態參數卡片樣式 */
-        .param-container {
-            margin-top: 15px;
-        }
-        .param-card {
-            background: #f9f9f9;
-            border-left: 5px solid #d32f2f;
-            padding: 12px;
-            margin: 8px 0;
-            border-radius: 0 8px 8px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-        }
-        .param-name { font-weight: bold; color: #555; font-family: monospace; }
-        .param-value { background: #ffebee; color: #d32f2f; padding: 4px 10px; border-radius: 4px; font-weight: bold; }
-    </style>
+    /* UI 組件樣式 */
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    h1, h2 { margin-top: 0; color: var(--primary-color); }
+    
+    .timer-display {
+      font-size: 3rem;
+      font-weight: bold;
+      font-family: monospace;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .param-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .param-card {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+    }
+    body.role-admin .param-card {
+      border-color: #ffcdd2;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      background: #e0e0e0;
+    }
+    .status-badge.active {
+      background-color: #2e7d32;
+      color: white;
+    }
+
+    /* 小朋友測試用按鈕區（模擬系統觸發參數切換） */
+    .test-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-right: 10px;
+    }
+  </style>
 </head>
 <body>
 
-    <div id="childView" class="container child-mode" style="display: none;">
-        <h1>👦 系統自動追蹤中</h1>
-        <p>當前運作參數與時間已上傳至雲端（關閉視窗即自動暫停）</p>
-        
-        <div class="status-box">
-            <p style="margin: 5px 0; color: #666;">今日累計使用時間（開網頁自動續記）：</p>
-            <h2 id="childTimeDisplay" style="color: #e65100; margin: 5px 0; font-family: monospace;">00:00:00</h2>
-        </div>
+  <div class="container">
+    <div id="child-view" class="view-section">
+      <div class="card">
+        <h1>學習小助手</h1>
+        <p>系統正在安穩運行中，請專注於你的學習任務。</p>
+        <div class="timer-display" id="child-timer">00:00:00</div>
+      </div>
+      
+      <div class="card" style="border: 1px dashed #ccc;">
+        <h3>[開發者測試] 模擬內部功能切換</h3>
+        <button class="test-btn" onclick="switchFunction('MathGame')">進入 數學遊戲</button>
+        <button class="test-btn" onclick="switchFunction('EnglishReading')">進入 英文閱讀</button>
+        <button class="test-btn" onclick="switchFunction('DrawingBoard')">進入 自由畫板</button>
+      </div>
     </div>
 
-    <div id="adminView" class="container admin-mode" style="display: none;">
-        <div class="admin-panel">
-            <h2 style="color: #d32f2f; margin: 0 0 10px 0; text-align: center;">🚨 管理員即時核心監察端</h2>
-            
-            <p style="margin: 5px 0;">⏱ 今日總累計時間（關閉網頁即自動凍結）：</p>
-            <div id="adminTime" class="time-banner">00:00:00</div>
-            
-            <h4 style="margin: 20px 0 5px 0; color: #444;">動態傳入的參數列表 (自訂動態生成)：</h4>
-            <div id="paramList" class="param-container">
-                <div style="color: #999; font-style: italic;">等待參數傳入中...</div>
-            </div>
+    <div id="admin-view" class="view-section">
+      <div class="card">
+        <h1>管理員即時監察面板</h1>
+        <hr>
+        <h3>今日累計使用時間</h3>
+        <div class="timer-display" id="admin-timer">00:00:00</div>
+      </div>
+
+      <div class="card">
+        <h3>動態自訂參數與狀態監測</h3>
+        <div class="param-grid" id="admin-params-container">
+          <p style="color: #666;">正在加載雲端動態參數...</p>
         </div>
+      </div>
     </div>
+  </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // 1. Firebase 初始化配置
-        const firebaseConfig = {
-            databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
-        };
+    // 1. 預設配置初始化
+    const firebaseConfig = {
+      databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+    // 取得今天的日期字串 (YYYY-MM-DD)
+    const getTodayStr = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    // 時間格式化工具 (秒 -> HH:MM:SS)
+    const formatTime = (totalSeconds) => {
+      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const secs = String(totalSeconds % 60).padStart(2, '0');
+      return `${hrs}:${mins}:${secs}`;
+    };
+
+    // 2. 角色分流判定
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role') === 'admin' ? 'admin' : 'child';
+    document.body.classList.add(`role-${role}`);
+
+    // ==================== 小朋友端邏輯 ====================
+    if (role === 'child') {
+      let secondsUsed = 0;
+      const todayPath = `monitor_system/${getTodayStr()}`;
+      const childTimerEl = document.getElementById('child-timer');
+
+      // 斷點續記：先讀取今日已累積秒數
+      get(ref(db, todayPath)).then((snapshot) => {
+        if (snapshot.exists() && snapshot.val().secondsUsed) {
+          secondsUsed = snapshot.val().secondsUsed;
+        }
+        childTimerEl.textContent = formatTime(secondsUsed);
+
+        // 開始每秒累加並即時同步至 Firebase
+        setInterval(() => {
+          secondsUsed++;
+          childTimerEl.textContent = formatTime(secondsUsed);
+          update(ref(db, todayPath), { secondsUsed: secondsUsed });
+        }, 1000);
+      }).catch((error) => console.error("讀取斷點時間失敗:", error));
+
+      // 全域核心函數：動態參數寫入
+      window.switchFunction = function(currentFunction) {
+        if (!currentFunction) return;
+        // 將舊有的 active 狀態清除或直接更新目標參數為 active
+        // 這裡實作直接寫入目前激發的參數狀態
+        const paramRef = ref(db, `custom_params/${currentFunction}`);
+        set(paramRef, {
+          paramName: currentFunction,
+          lastActive: new Date().toISOString(),
+          status: "active"
+        });
+      };
+    }
+
+    // ==================== 管理員端邏輯 ====================
+    if (role === 'admin') {
+      const todayPath = `monitor_system/${getTodayStr()}`;
+      const adminTimerEl = document.getElementById('admin-timer');
+      const paramsContainer = document.getElementById('admin-params-container');
+
+      // 監聽今日計時器秒數
+      onValue(ref(db, todayPath), (snapshot) => {
+        if (snapshot.exists() && snapshot.val().secondsUsed) {
+          adminTimerEl.textContent = formatTime(snapshot.val().secondsUsed);
+        } else {
+          adminTimerEl.textContent = "00:00:00";
+        }
+      });
+
+      // 監聽動態參數路徑，自動利用 Object.keys() 撈出並渲染
+      onValue(ref(db, 'custom_params'), (snapshot) => {
+        paramsContainer.innerHTML = ''; // 清空舊渲染
         
-        // 取得今日日期作為資料庫根路徑
-        const todayStr = new Date().toISOString().split('T')[0]; 
-        const todayRef = ref(database, `monitor_system/${todayStr}`);
-
-        // 時間格式化工具 (00:00:00)
-        function formatSeconds(totalSeconds) {
-            const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-            const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-            const secs = String(totalSeconds % 60).padStart(2, '0');
-            return `${hrs}:${mins}:${secs}`;
+        if (!snapshot.exists()) {
+          paramsContainer.innerHTML = `<p style="color: #666;">目前雲端尚無動態參數</p>`;
+          return;
         }
 
-        // 2. 核心全域函數：無限自訂參數同步器
-        // 只要你傳入任何字串，它就會在資料庫自動建立該欄位，並把數值設為當前傳入的內容
-        window.switchFunction = function(currentFunction) {
-            console.log(`[自訂參數觸發] 傳入參數名: ${currentFunction}`);
-            
-            // 動態產生更新物件，例如傳入 'abc'，資料庫就會多出一個 "activeFeature": "abc"
-            const updateData = {};
-            updateData["activeFeature"] = currentFunction; // 保留當前活動參數提示
-            updateData[`custom_params/${currentFunction}`] = "Active (" + new Date().toLocaleTimeString() + ")";
-            
-            update(todayRef, updateData);
-        };
+        const data = snapshot.val();
+        const keys = Object.keys(data);
 
-        // 3. 角色分流與計時邏輯
-        let totalSecondsUsed = 0;
-        let isDatabaseLoaded = false;
-
-        function initApp() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const role = urlParams.get('role');
-
-            if (role === 'admin') {
-                // =================【管理員模式】=================
-                document.body.style.backgroundColor = "#ffcdd2";
-                document.getElementById('adminView').style.display = 'block';
-                
-                // 監聽今天的整個資料節點
-                onValue(todayRef, (snapshot) => {
-                    const data = snapshot.val() || {};
-                    
-                    // 1. 更新計時器
-                    document.getElementById('adminTime').innerText = formatSeconds(data.secondsUsed || 0);
-                    
-                    // 2. 獲取所有自訂的參數並動態渲染到網頁上
-                    const paramListDiv = document.getElementById('paramList');
-                    paramListDiv.innerHTML = ''; // 清空
-                    
-                    if (data.custom_params) {
-                        // 迴圈遍歷所有傳上來的自訂欄位名稱
-                        Object.keys(data.custom_params).forEach(paramName => {
-                            const val = data.custom_params[paramName];
-                            const card = document.createElement('div');
-                            card.className = 'param-card';
-                            card.innerHTML = `
-                                <span class="param-name">📌 ${paramName}</span>
-                                <span class="param-value">${val}</span>
-                            `;
-                            paramListDiv.appendChild(card);
-                        });
-                    } else {
-                        paramListDiv.innerHTML = '<div style="color: #999; font-style: italic;">目前尚無自訂參數傳入...</div>';
-                    }
-                });
-
-            } else {
-                // =================【小朋友模式】=================
-                document.body.style.backgroundColor = "#e1f5fe";
-                document.getElementById('childView').style.display = 'block';
-                
-                // 【核心：斷點續記邏輯】
-                // 網頁一打開，先去資料庫抓今天之前已經累積了多少秒
-                onValue(todayRef, (snapshot) => {
-                    // 只需要在第一次打開時載入舊數據，避免之後每秒更新時干擾
-                    if (!isDatabaseLoaded) {
-                        const data = snapshot.val();
-                        if (data && data.secondsUsed) {
-                            totalSecondsUsed = data.secondsUsed; // 繼承之前關閉網頁時的秒數！
-                        }
-                        isDatabaseLoaded = true;
-                        startTimer(); // 確保拿到舊時間後，才開始往上加
-                    }
-                });
-
-                // 為了測試你說的「完全自訂參數」，我這裡模擬網頁啟動後，自動觸發各種你沒定義過的參數
-                setTimeout(() => { switchFunction('anyCustomParameterName123'); }, 3000);
-                setTimeout(() => { switchFunction('superVideoPlayer'); }, 8000);
-                setTimeout(() => { switchFunction('minecraft_mod_active'); }, 14000);
-            }
-        }
-
-        // 小朋友端計時器啟動
-        function startTimer() {
-            setInterval(() => {
-                totalSecondsUsed++;
-                
-                // 更新小朋友端畫面
-                document.getElementById('childTimeDisplay').innerText = formatSeconds(totalSecondsUsed);
-                
-                // 實時把最新秒數存進 Firebase。當網頁關閉時，這個定時器會自然終止，時間就會凍結在最新狀態！
-                update(todayRef, {
-                    secondsUsed: totalSecondsUsed
-                });
-            }, 1000); // 每 1 秒即時同步一次
-        }
-
-        initApp();
-    </script>
+        keys.forEach(key => {
+          const paramInfo = data[key];
+          const card = document.createElement('div');
+          card.className = 'param-card';
+          card.innerHTML = `
+            <h4>${key}</h4>
+            <span class="status-badge active">${paramInfo.status || 'N/A'}</span>
+          `;
+          paramsContainer.appendChild(card);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
 
