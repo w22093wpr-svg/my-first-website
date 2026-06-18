@@ -2,64 +2,70 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理員即時監察端 (Admin Screen)</title>
+    <title>我的 App 功能監察系統</title>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-        // 1. 設定你的 Firebase 配置（使用你的專屬資料庫網址）
+        // 你的專屬資料庫
         const firebaseConfig = {
             databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
-        // 初始化 Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // 2. 定義管理員監察參數 adminScreen
-        let adminScreen = "正在連線中...";
+        // ==========================================
+        // 1. 小朋友端：點擊切換任何功能（無限參數，傳什麼就寫入什麼）
+        // ==========================================
+        window.switchFunction = function(anyFeature) {
+            // anyFeature 就是你說的無限參數，帶入什麼功能名稱，資料庫就同步什麼
+            set(ref(database, 'current_status/activeFeature'), anyFeature)
+            .then(() => console.log("App 成功同步功能:", anyFeature))
+            .catch((error) => console.error("同步失敗:", error));
+        }
 
-        // 3. 連線到資料庫的 'current_status/activeFeature' 路徑
-        const statusRef = ref(database, 'current_status/activeFeature');
+        // ==========================================
+        // 2. 管理員判斷：檢查網址後面有沒有加 admin 英文
+        // ==========================================
+        // 獲取目前網址的參數 (例如：index.html?role=admin)
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role'); // 撈取 role 的數值
 
-        // 4. 當小朋友端點擊按鈕、資料庫一改變，這裡會立刻被觸發
-        onValue(statusRef, (snapshot) => {
-            const data = snapshot.val();
+        // 如果網址後面有加管理員英文 admin，就啟動監察端參數
+        if (role === 'admin') {
+            let adminScreen = ''; // 管理員監察用的變數
             
-            // 將即時數據同步更新到管理員的參數與畫面上
-            adminScreen = data || "未知狀態";
-            
-            // 更新網頁畫面顯示
-            document.getElementById("admin-monitor").innerText = adminScreen;
-            console.log("【管理員監控】目前小朋友正在使用：", adminScreen);
-        }, (error) => {
-            console.error("讀取資料失敗:", error);
-            document.getElementById("admin-monitor").innerText = "讀取失敗，請檢查權限設定。";
-        });
+            // 顯示管理員專屬後台畫面
+            document.getElementById("admin-view").style.display = "block";
+
+            // 即時讀取與監察
+            const statusRef = ref(database, 'current_status/activeFeature');
+            onValue(statusRef, (snapshot) => {
+                adminScreen = snapshot.val() || "無";
+                document.getElementById("admin-monitor").innerText = adminScreen;
+                console.log("【管理員即時監察】:", adminScreen);
+            });
+        }
     </script>
 </head>
-<body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f9;">
+<body style="font-family: sans-serif; padding: 20px;">
 
-    <div style="max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <h2 style="color: #333; margin-top: 0; border-bottom: 2px solid #334155; padding-bottom: 10px;">
-            管理員即時監察端 (Admin)
-        </h2>
-        
-        <p style="font-size: 1.1em; color: #475569;">
-            目前連線資料庫：<br>
-            <small style="color: #0284c7;">chloe-2c627-default-rtdb</small>
+    <div style="background: #f0fdf4; padding: 20px; border-radius: 8px;">
+        <h3>【App 內嵌功能（小朋友點擊）】</h3>
+        <button onclick="switchFunction('crazygame')">瘋狂遊戲</button>
+        <button onclick="switchFunction('youtube')">YouTube 影片</button>
+        <button onclick="switchFunction('music')">音樂功能</button>
+        <button onclick="switchFunction('anyNewFeature')">未來新增的無限功能參數</button>
+    </div>
+
+    <div id="admin-view" style="display: none; background: #fef2f2; padding: 20px; border-radius: 8px; margin-top: 20px; border-left: 5px solid #ef4444;">
+        <h3>【管理員監察後台 (Admin Mode)】</h3>
+        <p style="font-size: 1.2em;">
+            即時監控畫面 ➔ 目前正在使用：
+            <strong id="admin-monitor" style="color: #ef4444; font-size: 1.5em;">連線中...</strong>
         </p>
-
-        <div style="margin-top: 30px; padding: 20px; background-color: #f8fafc; border-left: 5px solid #ef4444; border-radius: 4px;">
-            <span style="font-weight: bold; color: #64748b; display: block; margin-bottom: 5px;">
-                小朋友目前正在使用：
-            </span>
-            <span id="admin-monitor" style="font-size: 2em; font-weight: bold; color: #ef4444;">
-                載入中...
-            </span>
-        </div>
     </div>
 
 </body>
