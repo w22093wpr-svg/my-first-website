@@ -2,98 +2,122 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FamilyControl</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <style>.no-scroll { overflow: hidden; touch-action: none; }</style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>兒童友好的互動娛樂城 (純HTML簡易版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .iframe-container iframe { width: 100%; height: 100%; border: none; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans antialiased">
+<body class="bg-indigo-50 font-sans h-screen flex flex-col overflow-hidden m-0">
 
-    <!-- 小孩端正常畫面 -->
-    <div id="child-view" class="hidden min-h-screen flex flex-col items-center justify-center p-4">
-        <div class="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
-            <div class="animate-pulse text-green-500 text-5xl mb-4">💚</div>
-            <h1 class="text-xl font-bold text-gray-800 mb-2">系統守護中</h1>
-            <p class="text-sm text-gray-500">App 專用直連通道已就緒</p>
-        </div>
+    <div id="child-view" class="flex flex-col h-full w-full">
+        <header class="bg-white shadow-md p-4 flex justify-between items-center z-10">
+            <h1 class="text-2xl font-bold text-indigo-600">🎮 快樂學習小天地</h1>
+            <nav class="flex gap-4">
+                <button onclick="switchTab('poki', 'https://poki.com/en/crazy-games')" id="btn-poki" class="tab-btn px-6 py-3 bg-indigo-600 text-white font-semibold text-lg rounded-full shadow">🕹️ Poki 遊戲</button>
+                <button onclick="switchTab('bilibili', 'https://m.bilibili.com/search?keyword=bily')" id="btn-bilibili" class="tab-btn px-6 py-3 bg-gray-200 text-gray-700 font-semibold text-lg rounded-full shadow">📺 Bilibili 影片</button>
+                <button onclick="switchTab('youtube', 'https://m.youtube.com/')" id="btn-youtube" class="tab-btn px-6 py-3 bg-gray-200 text-gray-700 font-semibold text-lg rounded-full shadow">❤️ YouTube</button>
+            </nav>
+        </header>
+
+        <main class="flex-1 bg-white iframe-container relative">
+            <iframe id="main-iframe" src="https://poki.com/en/crazy-games" allow="autoplay; encrypted-media"></iframe>
+        </main>
     </div>
 
-    <!-- 鎖定層 -->
-    <div id="lock-screen" class="hidden fixed inset-0 bg-black z-50 flex flex-col items-center justify-center text-white p-6 no-scroll">
-        <div class="text-center space-y-4">
-            <span id="lock-icon" class="text-6xl mb-2 block animate-bounce">⚠️</span>
-            <h1 id="lock-title" class="text-3xl font-extrabold tracking-wider text-red-500"></h1>
-            <p id="lock-msg" class="text-lg text-gray-300 px-4 animate-pulse"></p>
-        </div>
-    </div>
-
-    <!-- 家長端控制台 -->
-    <div id="parent-view" class="hidden min-h-screen bg-slate-900 text-white p-6">
-        <div class="max-w-md mx-auto space-y-6">
-            <h1 class="text-2xl font-bold text-sky-400">⚡ 家長直連控制台</h1>
-            <!-- 狀態顯示區 -->
-            <div id="status-display" class="bg-slate-800 p-4 rounded-xl border border-slate-600 text-center">
-                <p class="text-xs text-slate-400">子女目前狀態</p>
-                <p id="status-text" class="text-lg font-bold text-white">讀取中...</p>
+    <div id="parent-view" class="hidden fixed inset-0 bg-slate-900 text-white p-8 flex flex-col z-40 overflow-y-auto">
+        <div class="max-w-2xl mx-auto w-full bg-slate-800 p-8 rounded-2xl border border-slate-700 mt-10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-emerald-400">👨‍👩‍👧‍👦 家長管理控制台</h2>
+                <button onclick="exitParentMode()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 rounded-lg text-sm">離開控制台</button>
             </div>
-            <button onclick="directUnlock()" class="w-full bg-emerald-600 p-4 rounded-xl font-bold">🔓 解除鎖定</button>
-            <div class="bg-slate-800 p-5 rounded-2xl space-y-3">
-                <input type="text" id="custom-title" placeholder="標題" class="w-full bg-slate-700 p-3 rounded-lg text-white">
-                <input type="text" id="custom-msg" placeholder="內容" class="w-full bg-slate-700 p-3 rounded-lg text-white">
-                <button onclick="sendCustomText()" class="w-full bg-amber-500 p-3 rounded-lg text-black font-bold">🔒 發送並鎖定</button>
+            <hr class="border-slate-700 mb-6">
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold mb-2 text-slate-300">📊 小朋友狀況監控</h3>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <span>目前正在看：</span>
+                    <span id="current-status-text" class="text-xl font-bold text-yellow-400">載入中...</span>
+                </div>
             </div>
-            <button onclick="directLock('', '')" class="w-full bg-purple-600 p-3 rounded-lg font-bold">⚫ 完全純黑屏</button>
+
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-4 text-slate-300">🛑 遠端黑屏與文字控制</h3>
+                <div class="flex items-center justify-between bg-slate-900 p-4 rounded-xl border border-slate-700 mb-4">
+                    <div>
+                        <p class="font-medium">一鍵黑屏開關</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="lock-toggle" onchange="db.ref('control/isLocked').set(this.checked)" class="sr-only peer">
+                        <div class="w-14 h-7 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-rose-600"></div>
+                    </label>
+                </div>
+                <div class="bg-slate-900 p-4 rounded-xl border border-slate-700">
+                    <label class="block text-sm font-medium mb-2">黑屏顯示提示文字：</label>
+                    <input type="text" id="lock-message-input" value="該休息囉！" class="w-full p-3 rounded bg-slate-800 border border-slate-600 text-white">
+                    <button onclick="db.ref('control/message').set(document.getElementById('lock-message-input').value)" class="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded font-medium">更新提示文字</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <div id="black-overlay" class="hidden fixed inset-0 bg-black flex flex-col justify-center items-center z-50">
+        <h1 id="overlay-text" class="text-white text-4xl md:text-6xl font-bold text-center">該休息囉！</h1>
+    </div>
+
+    <div class="fixed bottom-3 right-3 z-30 opacity-20 hover:opacity-100 flex items-center gap-2 bg-white/80 p-1 rounded shadow">
+        <input type="password" id="parent-pwd" placeholder="密碼..." class="w-24 p-1 text-xs border rounded">
+        <button onclick="checkParentPassword()" class="text-xs bg-gray-600 text-white px-2 py-1 rounded">家長</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
     <script>
-        const TARGET_TOKEN = "TKeJ2mKK3Uqaw5K6suxeJvCCUyZhR5rtCJntNfnz";
-        const db = firebase.initializeApp({databaseURL: "https://crested-guru-452314-r3-default-rtdb.asia-southeast1.firebasedatabase.app"}).database();
+        // 這是你專案的資料庫網址
+        const firebaseConfig = {
+            databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-        const role = new URLSearchParams(window.location.search).get('role');
-        const lockScreen = document.getElementById('lock-screen');
-
-        if (role === 'parent') {
-            document.getElementById('parent-view').classList.remove('hidden');
-            // 家長端監聽小孩狀態
-            db.ref('deviceState').on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.targetToken === TARGET_TOKEN) {
-                    document.getElementById('status-text').innerText = data.isLocked ? "⚫ 目前黑屏鎖定中" : "🟢 正常使用中";
-                    document.getElementById('status-text').className = data.isLocked ? "text-lg font-bold text-red-500" : "text-lg font-bold text-green-500";
-                }
-            });
-        } else {
-            document.getElementById('child-view').classList.remove('hidden');
-            initChildListener();
+        // 兒童切換分頁，直接回傳狀態給 Firebase
+        function switchTab(tabId, url) {
+            document.getElementById('main-iframe').src = url;
+            document.querySelectorAll('.tab-btn').forEach(btn => { btn.classList.remove('bg-indigo-600', 'text-white'); btn.classList.add('bg-gray-200', 'text-gray-700'); });
+            document.getElementById(`btn-${tabId}`).classList.remove('bg-gray-200', 'text-gray-700');
+            document.getElementById(`btn-${tabId}`).classList.add('bg-indigo-600', 'text-white');
+            
+            let nameMap = {'poki':'Poki 遊戲', 'bilibili':'Bilibili 影片', 'youtube':'YouTube'};
+            db.ref('control/currentTab').set(nameMap[tabId]);
         }
 
-        function initChildListener() {
-            db.ref('deviceState').on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data || data.targetToken !== TARGET_TOKEN) return;
-
-                if (data.isLocked) {
-                    lockScreen.classList.remove('hidden');
-                    document.body.classList.add('no-scroll');
-                    document.getElementById('lock-title').innerText = data.title || "";
-                    document.getElementById('lock-msg').innerText = data.message || "";
-                    
-                    if (window.AppInventor) window.AppInventor.setWebViewString("NOTIFY");
-                } else {
-                    lockScreen.classList.add('hidden');
-                    document.body.classList.remove('no-scroll');
-                    if (window.AppInventor) window.AppInventor.setWebViewString("UNLOCK");
-                }
-            });
+        // 檢查進入家長端密室
+        function checkParentPassword() {
+            const pwd = document.getElementById('parent-pwd').value;
+            if (pwd === 'nicoleparent') {
+                document.getElementById('parent-view').classList.remove('hidden');
+                document.getElementById('parent-pwd').value = '';
+            } else { alert('密碼錯誤！'); }
         }
+        function exitParentMode() { document.getElementById('parent-view').classList.add('hidden'); }
 
-        function sendCustomText() { directLock(document.getElementById('custom-title').value, document.getElementById('custom-msg').value); }
-        function directLock(t, m) { db.ref('deviceState').update({isLocked: true, title: t, message: m, updatedAt: Date.now()}); }
-        function directUnlock() { db.ref('deviceState').update({isLocked: false}); }
+        // 【即時監聽】（三個監聽器：開關、文字、狀態）
+        db.ref('control/isLocked').on('value', snapshot => {
+            const isLocked = snapshot.val();
+            document.getElementById('black-overlay').classList.toggle('hidden', !isLocked);
+            document.getElementById('lock-toggle').checked = !!isLocked;
+        });
+        db.ref('control/message').on('value', snapshot => {
+            document.getElementById('overlay-text').innerText = snapshot.val() || '該休息囉！';
+        });
+        db.ref('control/currentTab').on('value', snapshot => {
+            document.getElementById('current-status-text').innerText = snapshot.val() || '未知';
+        });
+
+        // 預設先載入第一個 Poki 遊戲
+        switchTab('poki', 'https://poki.com/en/crazy-games');
     </script>
 </body>
 </html>
