@@ -1,247 +1,152 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>動態監控系統</title>
-  <style>
-    :root {
-      --primary-color: #4a90e2;
-      --bg-color: #f5f7fa;
-      --card-bg: #ffffff;
-      --text-color: #333333;
-    }
-    
-    /* 管理員端紅色系面板 */
-    body.role-admin {
-      --primary-color: #e53935;
-      --bg-color: #ffebee;
-      --card-bg: #ffffff;
-      --text-color: #212121;
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 20px;
-      transition: background-color 0.3s ease;
-    }
-
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    /* 角色視圖控制 */
-    .view-section { display: none; }
-    body.role-child #child-view { display: block; }
-    body.role-admin #admin-view { display: block; }
-
-    /* UI 組件樣式 */
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-      margin-bottom: 20px;
-    }
-
-    h1, h2 { margin-top: 0; color: var(--primary-color); }
-    
-    .timer-display {
-      font-size: 3rem;
-      font-weight: bold;
-      font-family: monospace;
-      text-align: center;
-      margin: 20px 0;
-    }
-
-    .param-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .param-card {
-      background: #f8f9fa;
-      border: 2px solid #e9ecef;
-      border-radius: 8px;
-      padding: 15px;
-      text-align: center;
-    }
-    body.role-admin .param-card {
-      border-color: #ffcdd2;
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      background: #e0e0e0;
-    }
-    .status-badge.active {
-      background-color: #2e7d32;
-      color: white;
-    }
-
-    /* 小朋友測試用按鈕區（模擬系統觸發參數切換） */
-    .test-btn {
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 1rem;
-      margin-right: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 即時同步系統</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        /* 預設隱藏所有模式，由 JS 決定顯示哪一個 */
+        .mode-section {
+            display: none;
+        }
+        .btn {
+            background-color: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 8px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: #357abd; }
+        .btn:active { transform: scale(0.98); }
+        .status-badge {
+            display: inline-block;
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 15px;
+        }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+    </style>
 </head>
 <body>
 
-  <div class="container">
-    <div id="child-view" class="view-section">
-      <div class="card">
-        <h1>學習小助手</h1>
-        <p>系統正在安穩運行中，請專注於你的學習任務。</p>
-        <div class="timer-display" id="child-timer">00:00:00</div>
-      </div>
-      
-      <div class="card" style="border: 1px dashed #ccc;">
-        <h3>[開發者測試] 模擬內部功能切換</h3>
-        <button class="test-btn" onclick="switchFunction('MathGame')">進入 數學遊戲</button>
-        <button class="test-btn" onclick="switchFunction('EnglishReading')">進入 英文閱讀</button>
-        <button class="test-btn" onclick="switchFunction('DrawingBoard')">進入 自由畫板</button>
-      </div>
-    </div>
-
-    <div id="admin-view" class="view-section">
-      <div class="card">
-        <h1>管理員即時監察面板</h1>
-        <hr>
-        <h3>今日累計使用時間</h3>
-        <div class="timer-display" id="admin-timer">00:00:00</div>
-      </div>
-
-      <div class="card">
-        <h3>動態自訂參數與狀態監測</h3>
-        <div class="param-grid" id="admin-params-container">
-          <p style="color: #666;">正在加載雲端動態參數...</p>
+    <div class="container">
+        <div id="childMode" class="mode-section">
+            <h1>🎒 小朋友互動空間</h1>
+            <p>目前正在運行此功能，系統會自動同步狀態。</p>
+            <button class="btn" onclick="simulateSwitch('drawingGame')">開啟畫畫遊戲</button>
+            <button class="btn" onclick="simulateSwitch('mathQuiz')">開啟數學挑戰</button>
+            <button class="btn" onclick="simulateSwitch('englishStory')">開啟英文故事</button>
         </div>
-      </div>
+
+        <div id="adminMode" class="mode-section">
+            <h1>👁️ 管理員即時監察端</h1>
+            <p>當前小朋友正在使用的功能參數：</p>
+            <div id="currentActiveFeature" class="status-badge">等待資料載入...</div>
+        </div>
     </div>
-  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getDatabase, ref, set, update, onValue, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 1. 預設配置初始化
-    const firebaseConfig = {
-      databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
-    };
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+        // 1. Firebase 配置 (已預設為您指定的 databaseURL)
+        const firebaseConfig = {
+            databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
 
-    // 取得今天的日期字串 (YYYY-MM-DD)
-    const getTodayStr = () => {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    };
+        // 初始化 Firebase 与 Realtime Database
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const statusRef = ref(db, 'current_status/activeFeature');
 
-    // 時間格式化工具 (秒 -> HH:MM:SS)
-    const formatTime = (totalSeconds) => {
-      const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
-      const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
-      const secs = String(totalSeconds % 60).padStart(2, '0');
-      return `${hrs}:${mins}:${secs}`;
-    };
+        ---
 
-    // 2. 角色分流判定
-    const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role') === 'admin' ? 'admin' : 'child';
-    document.body.classList.add(`role-${role}`);
+        // 2. 核心功能：無限擴充的自動同步參數函數
+        window.switchFunction = function(currentFunction) {
+            if (!currentFunction) return;
+            
+            // 立刻將最新的狀態數值寫入 Firebase
+            set(statusRef, currentFunction)
+                .then(() => {
+                    console.log(`[Firebase] 成功同步參數: ${currentFunction}`);
+                })
+                .catch((error) => {
+                    console.error("[Firebase] 同步失敗:", error);
+                });
+        };
 
-    // ==================== 小朋友端邏輯 ====================
-    if (role === 'child') {
-      let secondsUsed = 0;
-      const todayPath = `monitor_system/${getTodayStr()}`;
-      const childTimerEl = document.getElementById('child-timer');
+        // 供小朋友畫面按鈕測試用的輔助函數
+        window.simulateSwitch = function(featureName) {
+            window.switchFunction(featureName);
+        };
 
-      // 斷點續記：先讀取今日已累積秒數
-      get(ref(db, todayPath)).then((snapshot) => {
-        if (snapshot.exists() && snapshot.val().secondsUsed) {
-          secondsUsed = snapshot.val().secondsUsed;
-        }
-        childTimerEl.textContent = formatTime(secondsUsed);
+        ---
 
-        // 開始每秒累加並即時同步至 Firebase
-        setInterval(() => {
-          secondsUsed++;
-          childTimerEl.textContent = formatTime(secondsUsed);
-          update(ref(db, todayPath), { secondsUsed: secondsUsed });
-        }, 1000);
-      }).catch((error) => console.error("讀取斷點時間失敗:", error));
+        // 3. 角色分流邏輯與畫面控制
+        function initApp() {
+            // 解析網址參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const role = urlParams.get('role');
 
-      // 全域核心函數：動態參數寫入
-      window.switchFunction = function(currentFunction) {
-        if (!currentFunction) return;
-        // 將舊有的 active 狀態清除或直接更新目標參數為 active
-        // 這裡實作直接寫入目前激發的參數狀態
-        const paramRef = ref(db, `custom_params/${currentFunction}`);
-        set(paramRef, {
-          paramName: currentFunction,
-          lastActive: new Date().toISOString(),
-          status: "active"
-        });
-      };
-    }
+            const childDOM = document.getElementById('childMode');
+            const adminDOM = document.getElementById('adminMode');
 
-    // ==================== 管理員端邏輯 ====================
-    if (role === 'admin') {
-      const todayPath = `monitor_system/${getTodayStr()}`;
-      const adminTimerEl = document.getElementById('admin-timer');
-      const paramsContainer = document.getElementById('admin-params-container');
+            if (role === 'admin') {
+                // 【管理員監察模式】
+                adminDOM.style.display = 'block';
+                childDOM.remove(); // 徹底移除小朋友畫面，防止透過 CSS 繞過
 
-      // 監聽今日計時器秒數
-      onValue(ref(db, todayPath), (snapshot) => {
-        if (snapshot.exists() && snapshot.val().secondsUsed) {
-          adminTimerEl.textContent = formatTime(snapshot.val().secondsUsed);
-        } else {
-          adminTimerEl.textContent = "00:00:00";
-        }
-      });
+                // 啟動 Firebase 隔空秒速監聽
+                onValue(statusRef, (snapshot) => {
+                    const data = snapshot.val();
+                    const displayDOM = document.getElementById('currentActiveFeature');
+                    if (data) {
+                        displayDOM.innerText = data;
+                    } else {
+                        displayDOM.innerText = '尚無資料';
+                    }
+                });
+            } else {
+                // 【小朋友模式】 (預設模式，網址無參數或參數錯誤時)
+                childDOM.style.display = 'block';
+                adminDOM.remove(); // 徹底移除管理員畫面
 
-      // 監聽動態參數路徑，自動利用 Object.keys() 撈出並渲染
-      onValue(ref(db, 'custom_params'), (snapshot) => {
-        paramsContainer.innerHTML = ''; // 清空舊渲染
-        
-        if (!snapshot.exists()) {
-          paramsContainer.innerHTML = `<p style="color: #666;">目前雲端尚無動態參數</p>`;
-          return;
+                // 模擬 App 初始化時自動呼叫一次，載入預設功能
+                window.switchFunction('defaultHome');
+            }
         }
 
-        const data = snapshot.val();
-        const keys = Object.keys(data);
-
-        keys.forEach(key => {
-          const paramInfo = data[key];
-          const card = document.createElement('div');
-          card.className = 'param-card';
-          card.innerHTML = `
-            <h4>${key}</h4>
-            <span class="status-badge active">${paramInfo.status || 'N/A'}</span>
-          `;
-          paramsContainer.appendChild(card);
-        });
-      });
-    }
-  </script>
+        // 執行初始化
+        initApp();
+    </script>
 </body>
 </html>
 
