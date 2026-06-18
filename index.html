@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 系統指派與時間監控系統</title>
+    <title>Firebase 系統監控與歷史日誌系統</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -25,7 +25,7 @@
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             text-align: center;
-            max-width: 420px;
+            max-width: 500px;
             width: 100%;
         }
 
@@ -41,41 +41,63 @@
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        /* 管理員模式樣式 */
-        .admin-mode { background-color: #ffebee; }
+        /* 管理員監察模式樣式 */
+        .admin-mode { background-color: #ffebee; max-width: 600px; }
         .admin-panel {
             border: 3px dashed #d32f2f;
             padding: 20px;
             background-color: #fff;
             border-radius: 12px;
+            text-align: left;
         }
-        .status-display {
-            font-size: 26px;
-            font-weight: bold;
-            color: #d32f2f;
-            margin: 15px 0;
+        .admin-header { text-align: center; margin-bottom: 20px; }
+        
+        .flex-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-card {
+            flex: 1;
+            background: #fdfdfd;
+            border: 1px solid #ffcdd2;
             padding: 10px;
-            background: #ffebee;
-            border-radius: 6px;
+            border-radius: 8px;
+            text-align: center;
         }
-        .time-display {
-            font-size: 32px;
-            font-weight: bold;
-            color: #e65100;
-            margin: 15px 0;
-            padding: 10px;
-            background: #fff3e0;
-            border-radius: 6px;
-            font-family: monospace;
+
+        .status-display { font-size: 22px; font-weight: bold; color: #d32f2f; margin-top: 5px; }
+        .time-display { font-size: 24px; font-weight: bold; color: #e65100; margin-top: 5px; font-family: monospace; }
+
+        /* 歷史記錄日誌樣式 */
+        .log-container {
+            background: #2b2b2b;
+            color: #a9b7c6;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            max-height: 250px;
+            overflow-y: auto;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
         }
+        .log-line {
+            margin: 4px 0;
+            border-bottom: 1px solid #3b3b3b;
+            padding-bottom: 4px;
+            line-height: 1.4;
+        }
+        .log-time { color: #6a8759; }
+        .log-event { color: #ffc66d; }
+        .log-duration { color: #9876aa; }
     </style>
 </head>
 <body>
 
-    <!-- 【小朋友模式畫面】：沒有按鈕可以自己選 -->
     <div id="childView" class="container child-mode" style="display: none;">
         <h1>👦 系統自動運行中</h1>
-        <p>目前功能與使用時間正自動同步至雲端...</p>
+        <p>目前功能與使用時間正自動同步至雲端紀錄...</p>
         
         <div class="status-box">
             <p style="margin: 5px 0; color: #666;">系統指定功能：</p>
@@ -86,28 +108,36 @@
             <p style="margin: 5px 0; color: #666;">今天已使用時間：</p>
             <h2 id="childTimeDisplay" style="color: #e65100; margin: 5px 0; font-family: monospace;">00:00:00</h2>
         </div>
-        <p style="color: #999; font-size: 11px;">網址後加上 <code>?role=admin</code> 可切換為管理員監察端</p>
     </div>
 
-    <!-- 【管理員監察模式畫面】 -->
     <div id="adminView" class="container admin-mode" style="display: none;">
         <div class="admin-panel">
-            <h1 style="color: #d32f2f;">🚨 管理員即時監察端</h1>
-            <p>正在監控目前的活動與使用時間...</p>
-            <hr style="border: 0; border-top: 1px solid #ffcdd2;">
+            <div class="admin-header">
+                <h1 style="color: #d32f2f; margin-bottom: 5px;">🚨 管理員即時監察端</h1>
+                <p style="margin: 0; color: #555;">歷史行為軌跡與時間自動留存</p>
+            </div>
             
-            <p style="margin-bottom: 5px;">🔥 目前活躍功能：</p>
-            <div id="adminFeature" class="status-display">載入中...</div>
-            
-            <p style="margin-bottom: 5px;">⏱ 今日累計使用時間：</p>
-            <div id="adminTime" class="time-display">00:00:00</div>
+            <div class="flex-row">
+                <div class="info-card">
+                    <span style="font-size: 13px; color: #666;">🔥 當前功能</span>
+                    <div id="adminFeature" class="status-display">載入中...</div>
+                </div>
+                <div class="info-card">
+                    <span style="font-size: 13px; color: #666;">⏱ 今日累計時間</span>
+                    <div id="adminTime" class="time-display">00:00:00</div>
+                </div>
+            </div>
+
+            <h3 style="margin: 10px 0 5px 0; color: #333;">📋 實時動態歷史日誌 (Logs)：</h3>
+            <div id="logBox" class="log-container">
+                <div style="color: #808080; font-style: italic;">等待系統連線中...</div>
+            </div>
         </div>
     </div>
 
-    <!-- 引入 Firebase Web SDK (v10+) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // 1. Firebase 配置
         const firebaseConfig = {
@@ -117,11 +147,12 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
         
-        // 將路徑改為當天日期（例如 current_status/2026-06-18），這樣每天的時間就會分開計算
+        // 依據當天日期建立獨立根路徑
         const todayStr = new Date().toISOString().split('T')[0]; 
-        const statusRef = ref(database, `daily_monitor/${todayStr}`);
+        const rootRef = ref(database, `daily_monitor/${todayStr}`);
+        const logsRef = ref(database, `daily_monitor/${todayStr}/history_logs`);
 
-        // 格式化秒數為 00:00:00 的工具函數
+        // 工具函數：秒數轉化
         function formatSeconds(totalSeconds) {
             const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
             const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
@@ -129,18 +160,28 @@
             return `${hrs}:${mins}:${secs}`;
         }
 
-        // 2. 核心功能：自動同步狀態與時間
+        // 2. 核心功能：狀態切換與日誌寫入
         let totalSecondsUsed = 0;
-        let currentActiveFeature = "crazygame"; // 這是系統內部自行指定的初始功能
+        let currentActiveFeature = "crazygame";
 
         window.switchFunction = function(currentFunction) {
             currentActiveFeature = currentFunction;
-            // 更新畫面的文字顯示
+            
             if(document.getElementById('childFeatureDisplay')) {
                 document.getElementById('childFeatureDisplay').innerText = currentFunction;
             }
-            // 立刻同步到資料庫
-            update(statusRef, { activeFeature: currentActiveFeature });
+
+            // 狀態變更時，除了更新當前狀態，同時在歷史紀錄 (history_logs) 中 push 一筆新資料
+            update(rootRef, { activeFeature: currentActiveFeature });
+            
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+            
+            push(logsRef, {
+                timestamp: timeStr,
+                changedTo: currentFunction,
+                currentTotalTime: totalSecondsUsed
+            });
         };
 
         // 3. 角色分流與初始化
@@ -153,13 +194,39 @@
                 document.body.style.backgroundColor = "#ffcdd2";
                 document.getElementById('adminView').style.display = 'block';
                 
-                // 監聽當天的資料庫數據
-                onValue(statusRef, (snapshot) => {
-                    const data = snapshot.val() || { activeFeature: '無資料', secondsUsed: 0 };
+                // 1. 監聽當前概況 (功能、時間)
+                onValue(rootRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if(data) {
+                        document.getElementById('adminFeature').innerText = data.activeFeature || 'idle';
+                        document.getElementById('adminTime').innerText = formatSeconds(data.secondsUsed || 0);
+                    }
+                });
+
+                // 2. 監聽歷史日誌：只要資料庫有 push 新紀錄，這裡就會即時收到並重新渲染列表
+                onValue(logsRef, (snapshot) => {
+                    const logBox = document.getElementById('logBox');
+                    logBox.innerHTML = ''; // 清空舊畫面
                     
-                    // 秒速同步顯示功能與格式化後的時間
-                    document.getElementById('adminFeature').innerText = data.activeFeature || 'idle';
-                    document.getElementById('adminTime').innerText = formatSeconds(data.secondsUsed || 0);
+                    const logsData = snapshot.val();
+                    if (!logsData) {
+                        logBox.innerHTML = '<div style="color: #808080;">尚無任何操作紀錄。</div>';
+                        return;
+                    }
+
+                    // 轉換為陣列並倒序排列，讓最新的歷史紀錄顯示在最上面
+                    const logList = Object.values(logsData).reverse();
+
+                    logList.forEach(log => {
+                        const line = document.createElement('div');
+                        line.className = 'log-line';
+                        line.innerHTML = `
+                            [<span class="log-time">${log.timestamp}</span>] 
+                            切換功能為 <span class="log-event">"${log.changedTo}"</span> 
+                            (當時累計時間: <span class="log-duration">${formatSeconds(log.currentTotalTime)}</span>)
+                        `;
+                        logBox.appendChild(line);
+                    });
                 });
 
             } else {
@@ -167,35 +234,37 @@
                 document.body.style.backgroundColor = "#e1f5fe";
                 document.getElementById('childView').style.display = 'block';
                 
-                // 先向資料庫讀取今天已經累積了多少秒數（防止重新整理網頁後時間歸零）
-                onValue(statusRef, (snapshot) => {
+                // 讀取今日已累積秒數
+                onValue(rootRef, (snapshot) => {
                     const data = snapshot.val();
                     if (data && data.secondsUsed) {
                         totalSecondsUsed = data.secondsUsed;
                     }
-                }, { onlyOnce: true }); // 只讀取一次
+                }, { onlyOnce: true });
 
-                // 啟動預設的功能名稱
+                // 觸發初始狀態
                 switchFunction('crazygame');
 
-                // 模擬系統在 10 秒後，自動把功能換成 youtube (小朋友無法干涉)
+                // 模擬：15 秒後系統自動切換到 youtube
                 setTimeout(() => {
                     switchFunction('youtube');
-                }, 10000);
+                }, 15000);
 
-                // 核心計時器：每 1 秒鐘自動執行一次
+                // 模擬：30 秒後系統自動切換到 music
+                setTimeout(() => {
+                    switchFunction('music');
+                }, 30000);
+
+                // 每 1 秒累積時間並更新
                 setInterval(() => {
                     totalSecondsUsed++;
-                    
-                    // 更新小朋友端畫面的時間
                     document.getElementById('childTimeDisplay').innerText = formatSeconds(totalSecondsUsed);
                     
-                    // 同步寫入資料庫（同時打包功能和時間，確保不漏接）
-                    update(statusRef, {
-                        activeFeature: currentActiveFeature,
+                    // 每秒同步時間
+                    update(rootRef, {
                         secondsUsed: totalSecondsUsed
                     });
-                }, 10000); // 💡 注意：為了不讓網路太卡，這裡設定每 10 秒鐘和資料庫同步一次。如果你希望真的是「每秒」極限同步，可以把 10000 改成 1000。
+                }, 1000); 
             }
         }
 
