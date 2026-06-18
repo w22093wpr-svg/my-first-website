@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 角色分流與即時同步系統</title>
+    <title>Firebase 系統指派與時間監控系統</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -25,35 +25,24 @@
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
             text-align: center;
-            max-width: 400px;
+            max-width: 420px;
             width: 100%;
         }
 
         h1 { margin-top: 0; }
 
         /* 小朋友模式樣式 */
-        .child-mode {
-            background-color: #e3f2fd;
-        }
-        .btn {
-            background-color: #1e88e5;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            margin: 8px;
-            font-size: 16px;
+        .child-mode { background-color: #e3f2fd; }
+        .status-box {
+            background: #fff;
+            padding: 15px;
             border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            width: 80%;
+            margin: 15px 0;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
         }
-        .btn:hover { background-color: #1565c0; transform: translateY(-2px); }
-        .btn:active { transform: translateY(0); }
 
         /* 管理員模式樣式 */
-        .admin-mode {
-            background-color: #ffebee;
-        }
+        .admin-mode { background-color: #ffebee; }
         .admin-panel {
             border: 3px dashed #d32f2f;
             padding: 20px;
@@ -61,95 +50,155 @@
             border-radius: 12px;
         }
         .status-display {
-            font-size: 28px;
+            font-size: 26px;
             font-weight: bold;
             color: #d32f2f;
-            margin: 20px 0;
+            margin: 15px 0;
             padding: 10px;
             background: #ffebee;
             border-radius: 6px;
-            word-break: break-all;
+        }
+        .time-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: #e65100;
+            margin: 15px 0;
+            padding: 10px;
+            background: #fff3e0;
+            border-radius: 6px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
 
+    <!-- 【小朋友模式畫面】：沒有按鈕可以自己選 -->
     <div id="childView" class="container child-mode" style="display: none;">
-        <h1>👦 小朋友模式</h1>
-        <p>點擊下方按鈕切換功能，管理員端將會秒速同步！</p>
-        <button class="btn" onclick="switchFunction('crazygame')">🎮 啟動 Crazy Game</button>
-        <button class="btn" onclick="switchFunction('youtube')">📺 開啟 YouTube</button>
-        <button class="btn" onclick="switchFunction('music')">🎵 播放音樂</button>
-        <button class="btn" onclick="switchFunction('future-magic-' + Math.floor(Math.random()*100))">✨ 隨機未來新功能</button>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">提示：在網址後面加上 <code>?role=admin</code> 即可切換到管理員監察端</p>
+        <h1>👦 系統自動運行中</h1>
+        <p>目前功能與使用時間正自動同步至雲端...</p>
+        
+        <div class="status-box">
+            <p style="margin: 5px 0; color: #666;">系統指定功能：</p>
+            <h2 id="childFeatureDisplay" style="color: #1e88e5; margin: 5px 0;">載入中...</h2>
+        </div>
+
+        <div class="status-box">
+            <p style="margin: 5px 0; color: #666;">今天已使用時間：</p>
+            <h2 id="childTimeDisplay" style="color: #e65100; margin: 5px 0; font-family: monospace;">00:00:00</h2>
+        </div>
+        <p style="color: #999; font-size: 11px;">網址後加上 <code>?role=admin</code> 可切換為管理員監察端</p>
     </div>
 
+    <!-- 【管理員監察模式畫面】 -->
     <div id="adminView" class="container admin-mode" style="display: none;">
         <div class="admin-panel">
             <h1 style="color: #d32f2f;">🚨 管理員即時監察端</h1>
-            <p>正在即時監控小朋友的當前功能...</p>
+            <p>正在監控目前的活動與使用時間...</p>
             <hr style="border: 0; border-top: 1px solid #ffcdd2;">
-            <p>目前活躍功能（activeFeature）：</p>
-            <div id="currentStatus" class="status-display">載入中...</div>
-            <p style="font-size: 12px; color: #666;">⏱ 狀態由 Firebase 隔空不到一秒內秒速同步</p>
+            
+            <p style="margin-bottom: 5px;">🔥 目前活躍功能：</p>
+            <div id="adminFeature" class="status-display">載入中...</div>
+            
+            <p style="margin-bottom: 5px;">⏱ 今日累計使用時間：</p>
+            <div id="adminTime" class="time-display">00:00:00</div>
         </div>
     </div>
 
+    <!-- 引入 Firebase Web SDK (v10+) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 1. Firebase 基礎配置
+        // 1. Firebase 配置
         const firebaseConfig = {
             databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
-        // 初始化 Firebase
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-        const statusRef = ref(database, 'current_status/activeFeature');
+        
+        // 將路徑改為當天日期（例如 current_status/2026-06-18），這樣每天的時間就會分開計算
+        const todayStr = new Date().toISOString().split('T')[0]; 
+        const statusRef = ref(database, `daily_monitor/${todayStr}`);
 
-        // 2. 核心功能函數：無限擴充的自動同步參數
+        // 格式化秒數為 00:00:00 的工具函數
+        function formatSeconds(totalSeconds) {
+            const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(totalSeconds % 60).padStart(2, '0');
+            return `${hrs}:${mins}:${secs}`;
+        }
+
+        // 2. 核心功能：自動同步狀態與時間
+        let totalSecondsUsed = 0;
+        let currentActiveFeature = "crazygame"; // 這是系統內部自行指定的初始功能
+
         window.switchFunction = function(currentFunction) {
-            console.log(`[系統通知] 正在切換並同步功能至: ${currentFunction}`);
-            
-            // 將最新的狀態數值，寫入 Firebase 指定路徑
-            set(statusRef, currentFunction)
-                .then(() => {
-                    console.log("同步成功！");
-                })
-                .catch((error) => {
-                    console.error("同步失敗:", error);
-                });
+            currentActiveFeature = currentFunction;
+            // 更新畫面的文字顯示
+            if(document.getElementById('childFeatureDisplay')) {
+                document.getElementById('childFeatureDisplay').innerText = currentFunction;
+            }
+            // 立刻同步到資料庫
+            update(statusRef, { activeFeature: currentActiveFeature });
         };
 
-        // 3. 角色分流邏輯與介面控制
+        // 3. 角色分流與初始化
         function initApp() {
-            // 解析網址參數
             const urlParams = new URLSearchParams(window.location.search);
             const role = urlParams.get('role');
 
             if (role === 'admin') {
-                // 【管理員監察模式】
-                document.body.style.backgroundColor = "#ffcdd2"; // 變身為紅色系背景
+                // =================【管理員模式】=================
+                document.body.style.backgroundColor = "#ffcdd2";
                 document.getElementById('adminView').style.display = 'block';
                 
-                // 啟用 Firebase onValue 監聽功能，一有變動秒速更新
+                // 監聽當天的資料庫數據
                 onValue(statusRef, (snapshot) => {
-                    const data = snapshot.val();
-                    document.getElementById('currentStatus').innerText = data ? data : '尚無資料';
+                    const data = snapshot.val() || { activeFeature: '無資料', secondsUsed: 0 };
+                    
+                    // 秒速同步顯示功能與格式化後的時間
+                    document.getElementById('adminFeature').innerText = data.activeFeature || 'idle';
+                    document.getElementById('adminTime').innerText = formatSeconds(data.secondsUsed || 0);
                 });
+
             } else {
-                // 【小朋友模式】（預設內嵌功能模式）
-                document.body.style.backgroundColor = "#e1f5fe"; // 藍色系背景
+                // =================【小朋友模式】=================
+                document.body.style.backgroundColor = "#e1f5fe";
                 document.getElementById('childView').style.display = 'block';
                 
-                // 網頁自動載入時，預設觸發一次初始功能
-                switchFunction('home');
+                // 先向資料庫讀取今天已經累積了多少秒數（防止重新整理網頁後時間歸零）
+                onValue(statusRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.secondsUsed) {
+                        totalSecondsUsed = data.secondsUsed;
+                    }
+                }, { onlyOnce: true }); // 只讀取一次
+
+                // 啟動預設的功能名稱
+                switchFunction('crazygame');
+
+                // 模擬系統在 10 秒後，自動把功能換成 youtube (小朋友無法干涉)
+                setTimeout(() => {
+                    switchFunction('youtube');
+                }, 10000);
+
+                // 核心計時器：每 1 秒鐘自動執行一次
+                setInterval(() => {
+                    totalSecondsUsed++;
+                    
+                    // 更新小朋友端畫面的時間
+                    document.getElementById('childTimeDisplay').innerText = formatSeconds(totalSecondsUsed);
+                    
+                    // 同步寫入資料庫（同時打包功能和時間，確保不漏接）
+                    update(statusRef, {
+                        activeFeature: currentActiveFeature,
+                        secondsUsed: totalSecondsUsed
+                    });
+                }, 10000); // 💡 注意：為了不讓網路太卡，這裡設定每 10 秒鐘和資料庫同步一次。如果你希望真的是「每秒」極限同步，可以把 10000 改成 1000。
             }
         }
 
-        // 執行初始化
         initApp();
     </script>
 </body>
