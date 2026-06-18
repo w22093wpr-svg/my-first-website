@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 即時同步系統</title>
+    <title>Firebase 私人專案監控端</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f5f7fa;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f0f2f5;
             color: #333;
             margin: 0;
             padding: 20px;
@@ -16,60 +16,53 @@
             align-items: center;
             min-height: 100vh;
         }
-        .container {
+        .card {
             background: white;
             padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             text-align: center;
             max-width: 400px;
             width: 100%;
         }
-        /* 預設隱藏所有模式，由 JS 決定顯示哪一個 */
-        .mode-section {
-            display: none;
-        }
+        .mode { display: none; }
         .btn {
-            background-color: #4a90e2;
+            background-color: #007bff;
             color: white;
             border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 6px;
             cursor: pointer;
-            margin: 8px;
-            transition: background 0.2s;
+            margin: 5px;
         }
-        .btn:hover { background-color: #357abd; }
-        .btn:active { transform: scale(0.98); }
-        .status-badge {
+        .btn:hover { background-color: #0056b3; }
+        .badge {
             display: inline-block;
-            background-color: #e3f2fd;
-            color: #0d47a1;
-            padding: 8px 16px;
-            border-radius: 20px;
+            background-color: #e2e3e5;
+            color: #383d41;
+            padding: 10px 20px;
+            border-radius: 50px;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
             margin-top: 15px;
         }
-        h1 { color: #2c3e50; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="childMode" class="mode-section">
-            <h1>🎒 小朋友互動空間</h1>
-            <p>目前正在運行此功能，系統會自動同步狀態。</p>
-            <button class="btn" onclick="simulateSwitch('drawingGame')">開啟畫畫遊戲</button>
-            <button class="btn" onclick="simulateSwitch('mathQuiz')">開啟數學挑戰</button>
-            <button class="btn" onclick="simulateSwitch('englishStory')">開啟英文故事</button>
+    <div class="card">
+        <div id="childContainer" class="mode">
+            <h2>🎒 小朋友模式運作中</h2>
+            <p>點擊下方按鈕測試參數傳送：</p>
+            <button class="btn" onclick="triggerSwitch('game_start')">模擬：開始遊戲</button>
+            <button class="btn" onclick="triggerSwitch('reading_book')">模擬：閱讀繪本</button>
         </div>
 
-        <div id="adminMode" class="mode-section">
-            <h1>👁️ 管理員即時監察端</h1>
-            <p>當前小朋友正在使用的功能參數：</p>
-            <div id="currentActiveFeature" class="status-badge">等待資料載入...</div>
+        <div id="adminContainer" class="mode">
+            <h2>👁️ 私人管理員監察端</h2>
+            <p>即時同步的動態參數：</p>
+            <div id="monitorDisplay" class="badge">正在連線資料庫...</div>
         </div>
     </div>
 
@@ -77,75 +70,59 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 1. Firebase 配置 (已預設為您指定的 databaseURL)
+        // 前端安全的配置：只需提供資料庫網址，不包含私鑰
         const firebaseConfig = {
             databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
 
-        // 初始化 Firebase 与 Realtime Database
+        // 初始化
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const statusRef = ref(db, 'current_status/activeFeature');
+        const targetRef = ref(db, 'current_status/activeFeature');
 
-        ---
-
-        // 2. 核心功能：無限擴充的自動同步參數函數
+        // 2. 核心同步函數：讓全世界都可以呼叫的 window 職責
         window.switchFunction = function(currentFunction) {
             if (!currentFunction) return;
+            set(targetRef, currentFunction)
+                .then(() => console.log(`[成功推送到資料庫]: ${currentFunction}`))
+                .catch(err => console.error("寫入失敗，請檢查資料庫規則設定:", err));
+        };
+
+        // 按鈕輔助函數
+        window.triggerSwitch = function(name) {
+            window.switchFunction(name);
+        };
+
+        // 3. 網址角色路由分流邏輯
+        function checkRoleRoute() {
+            const params = new URLSearchParams(window.location.search);
+            const role = params.get('role');
             
-            // 立刻將最新的狀態數值寫入 Firebase
-            set(statusRef, currentFunction)
-                .then(() => {
-                    console.log(`[Firebase] 成功同步參數: ${currentFunction}`);
-                })
-                .catch((error) => {
-                    console.error("[Firebase] 同步失敗:", error);
-                });
-        };
-
-        // 供小朋友畫面按鈕測試用的輔助函數
-        window.simulateSwitch = function(featureName) {
-            window.switchFunction(featureName);
-        };
-
-        ---
-
-        // 3. 角色分流邏輯與畫面控制
-        function initApp() {
-            // 解析網址參數
-            const urlParams = new URLSearchParams(window.location.search);
-            const role = urlParams.get('role');
-
-            const childDOM = document.getElementById('childMode');
-            const adminDOM = document.getElementById('adminMode');
+            const childEl = document.getElementById('childContainer');
+            const adminEl = document.getElementById('adminContainer');
 
             if (role === 'admin') {
-                // 【管理員監察模式】
-                adminDOM.style.display = 'block';
-                childDOM.remove(); // 徹底移除小朋友畫面，防止透過 CSS 繞過
+                // 進入管理員監察模式
+                adminEl.style.display = 'block';
+                childEl.remove(); // 安全機制：直接把小朋友的 DOM 元素刪除
 
-                // 啟動 Firebase 隔空秒速監聽
-                onValue(statusRef, (snapshot) => {
-                    const data = snapshot.val();
-                    const displayDOM = document.getElementById('currentActiveFeature');
-                    if (data) {
-                        displayDOM.innerText = data;
-                    } else {
-                        displayDOM.innerText = '尚無資料';
-                    }
+                // 啟動秒速即時監聽
+                onValue(targetRef, (snapshot) => {
+                    const value = snapshot.val();
+                    document.getElementById('monitorDisplay').innerText = value ? value : '尚未獲取到資料';
                 });
             } else {
-                // 【小朋友模式】 (預設模式，網址無參數或參數錯誤時)
-                childDOM.style.display = 'block';
-                adminDOM.remove(); // 徹底移除管理員畫面
-
-                // 模擬 App 初始化時自動呼叫一次，載入預設功能
-                window.switchFunction('defaultHome');
+                // 進入小朋友預設模式
+                childEl.style.display = 'block';
+                adminEl.remove(); // 安全機制：直接把管理員的 DOM 元素刪除
+                
+                // 模擬開啟網頁時自動同步初始值
+                window.switchFunction('app_init');
             }
         }
 
-        // 執行初始化
-        initApp();
+        // 執行初始化路由
+        checkRoleRoute();
     </script>
 </body>
 </html>
