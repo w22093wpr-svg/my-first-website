@@ -1,129 +1,178 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firebase 私人專案監控端</title>
+    <title>我的 AI 語音助理</title>
+    <script src="https://js.puter.com/v2/"></script>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f0f2f5;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
             margin: 0;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            box-sizing: border-box;
         }
-        .card {
+        .container {
             background: white;
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             text-align: center;
             max-width: 400px;
             width: 100%;
         }
-        .mode { display: none; }
-        .btn {
-            background-color: #007bff;
+        h1 { color: #333; margin-bottom: 20px; }
+        button {
+            background-color: #4facfe;
+            background-image: linear-gradient(130deg, #4facfe 0%, #00f2fe 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            font-size: 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        .btn:hover { background-color: #0056b3; }
-        .badge {
-            display: inline-block;
-            background-color: #e2e3e5;
-            color: #383d41;
-            padding: 10px 20px;
+            padding: 15px 30px;
+            font-size: 18px;
             border-radius: 50px;
-            font-weight: bold;
-            font-size: 20px;
-            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,242,254,0.4);
+            transition: transform 0.2s;
+            width: 100%;
         }
+        button:active { transform: scale(0.95); }
+        .status { margin-top: 20px; color: #666; font-size: 16px; min-height: 24px; }
+        .response { margin-top: 15px; font-weight: bold; color: #222; font-size: 18px; word-break: break-all; }
+        
+        /* 隱藏的計時器挑戰頁面 */
+        #challenge-page {
+            display: none;
+            margin-top: 20px;
+            background: #ff9a9e;
+            background-image: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
+            padding: 20px;
+            border-radius: 15px;
+            color: white;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        #timer-display { font-size: 48px; font-weight: bold; margin: 10px 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div id="childContainer" class="mode">
-            <h2>🎒 小朋友模式運作中</h2>
-            <p>點擊下方按鈕測試參數傳送：</p>
-            <button class="btn" onclick="triggerSwitch('game_start')">模擬：開始遊戲</button>
-            <button class="btn" onclick="triggerSwitch('reading_book')">模擬：閱讀繪本</button>
-        </div>
+<div class="container">
+    <h1>AI 語音助理</h1>
+    <button id="speak-btn">🎤 按下開始對話</button>
+    <div class="status" id="status-text">準備就緒，點擊按鈕說話...</div>
+    <div class="response" id="response-text"></div>
 
-        <div id="adminContainer" class="mode">
-            <h2>👁️ 私人管理員監察端</h2>
-            <p>即時同步的動態參數：</p>
-            <div id="monitorDisplay" class="badge">正在連線資料庫...</div>
-        </div>
+    <div id="challenge-page">
+        <h3>🏆 挑戰頁面已開啟 🏆</h3>
+        <div id="timer-display">10</div>
+        <p>倒數計時中，加油！</p>
     </div>
+</div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+<script>
+    const speakBtn = document.getElementById('speak-btn');
+    const statusText = document.getElementById('status-text');
+    const responseText = document.getElementById('response-text');
+    const challengePage = document.getElementById('challenge-page');
+    const timerDisplay = document.getElementById('timer-display');
 
-        // 前端安全的配置：只需提供資料庫網址，不包含私鑰
-        const firebaseConfig = {
-            databaseURL: "https://chloe-2c627-default-rtdb.asia-southeast1.firebasedatabase.app"
-        };
+    let countdownTimer;
 
-        // 初始化
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const targetRef = ref(db, 'current_status/activeFeature');
+    // 檢查瀏覽器是否支援語音辨識與語音合成
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        statusText.innerText = "抱歉，您的瀏覽器不支援語音辨識，請使用 Chrome 或 Safari。";
+        speakBtn.style.display = 'none';
+    }
 
-        // 2. 核心同步函數：讓全世界都可以呼叫的 window 職責
-        window.switchFunction = function(currentFunction) {
-            if (!currentFunction) return;
-            set(targetRef, currentFunction)
-                .then(() => console.log(`[成功推送到資料庫]: ${currentFunction}`))
-                .catch(err => console.error("寫入失敗，請檢查資料庫規則設定:", err));
-        };
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'zh-TW'; // 設定辨識語言
+    recognition.interimResults = false;
 
-        // 按鈕輔助函數
-        window.triggerSwitch = function(name) {
-            window.switchFunction(name);
-        };
+    // 讓手機/電腦說話的函數
+    function speak(text) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-TW';
+        window.speechSynthesis.speak(utterance);
+    }
 
-        // 3. 網址角色路由分流邏輯
-        function checkRoleRoute() {
-            const params = new URLSearchParams(window.location.search);
-            const role = params.get('role');
-            
-            const childEl = document.getElementById('childContainer');
-            const adminEl = document.getElementById('adminContainer');
+    // 啟動計時器挑戰的函數
+    function startTimerChallenge() {
+        challengePage.style.display = 'block';
+        let timeLeft = 10; // 設定倒數 10 秒挑戰
+        timerDisplay.innerText = timeLeft;
 
-            if (role === 'admin') {
-                // 進入管理員監察模式
-                adminEl.style.display = 'block';
-                childEl.remove(); // 安全機制：直接把小朋友的 DOM 元素刪除
-
-                // 啟動秒速即時監聽
-                onValue(targetRef, (snapshot) => {
-                    const value = snapshot.val();
-                    document.getElementById('monitorDisplay').innerText = value ? value : '尚未獲取到資料';
-                });
-            } else {
-                // 進入小朋友預設模式
-                childEl.style.display = 'block';
-                adminEl.remove(); // 安全機制：直接把管理員的 DOM 元素刪除
-                
-                // 模擬開啟網頁時自動同步初始值
-                window.switchFunction('app_init');
+        clearInterval(countdownTimer);
+        countdownTimer = setInterval(() => {
+            timeLeft--;
+            timerDisplay.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(countdownTimer);
+                speak("挑戰時間到！");
+                alert("時間到！挑戰結束！");
             }
-        }
+        }, 1000);
+    }
 
-        // 執行初始化路由
-        checkRoleRoute();
-    </script>
+    // 點擊按鈕觸發語音聽寫
+    speakBtn.addEventListener('click', () => {
+        // 先隱藏上一次的計時器
+        challengePage.style.display = 'none';
+        clearInterval(countdownTimer);
+        responseText.innerText = "";
+        
+        statusText.innerText = "正在聆聽中...請說話...";
+        recognition.start();
+    });
+
+    // 當語音辨識成功拿到文字後
+    recognition.onresult = async (event) => {
+        const userQuery = event.results[0][0].transcript;
+        statusText.innerText = `你說：「${userQuery}」`;
+        responseText.innerText = "AI 思考中...";
+
+        // 給 Puter.js AI 的大腦說明書 (System Prompt)
+        const systemPrompt = "你是一個智慧語音助理。當使用者想要『開啟計時器』、『倒數』或相關挑戰時，你必須而且只能回答 `[TIMER]` 這七個字，絕對不能有其他字。如果使用者問其他生活常識或百科問題（例如最長的河流），請正常用繁體中文回答。";
+
+        try {
+            // 呼叫 Puter.js 免費的 AI 聊天功能
+            const response = await puter.ai.chat(
+                `${systemPrompt}\n\n使用者說：${userQuery}`
+            );
+
+            const aiAnswer = response.toString().trim();
+
+            // 判斷 AI 回傳的是不是秘密暗號
+            if (aiAnswer.includes('[TIMER]')) {
+                responseText.innerText = "收到指令！";
+                statusText.innerText = "已成功觸發計時器！";
+                speak("挑戰頁面已開啟計時器！");
+                startTimerChallenge();
+            } else {
+                // 如果是百科問題，直接秀出答案並讀出來
+                responseText.innerText = aiAnswer;
+                speak(aiAnswer);
+            }
+
+        } catch (error) {
+            console.error(error);
+            responseText.innerText = "糟糕，AI 大腦連線失敗。";
+        }
+    };
+
+    // 辨識出錯時處理
+    recognition.onerror = () => {
+        statusText.innerText = "沒聽清楚，請再按一次按鈕試試看。";
+        responseText.innerText = "";
+    };
+</script>
+
 </body>
 </html>
 
