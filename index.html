@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的 AI 語音助理</title>
+    <title>智慧有記憶的 AI 助理</title>
     <script src="https://js.puter.com/v2/"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -17,159 +17,184 @@
             margin: 0;
             padding: 20px;
             box-sizing: border-box;
+            color: #333;
         }
         .container {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
             text-align: center;
-            max-width: 400px;
+            max-width: 450px;
             width: 100%;
         }
-        h1 { color: #333; margin-bottom: 20px; }
+        h1 { color: #4a5568; margin-bottom: 20px; font-size: 28px; }
         button {
-            background-color: #4facfe;
-            background-image: linear-gradient(130deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             padding: 15px 30px;
             font-size: 18px;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,242,254,0.4);
-            transition: transform 0.2s;
+            box-shadow: 0 5px 15px rgba(118,75,162,0.4);
+            transition: all 0.2s;
             width: 100%;
+            font-weight: bold;
         }
-        button:active { transform: scale(0.95); }
-        .status { margin-top: 20px; color: #666; font-size: 16px; min-height: 24px; }
-        .response { margin-top: 15px; font-weight: bold; color: #222; font-size: 18px; word-break: break-all; }
+        button:active { transform: scale(0.98); }
+        .status { margin-top: 20px; color: #718096; font-size: 15px; min-height: 24px; }
+        .response { margin-top: 15px; font-weight: 500; color: #1a202c; font-size: 18px; line-height: 1.6; text-align: left; background: #edf2f7; padding: 15px; border-radius: 12px; max-height: 150px; overflow-y: auto; }
         
-        /* 隱藏的計時器挑戰頁面 */
+        /* 升級版計時器挑戰頁面 */
         #challenge-page {
             display: none;
             margin-top: 20px;
-            background: #ff9a9e;
-            background-image: linear-gradient(120deg, #f6d365 0%, #fda085 100%);
-            padding: 20px;
-            border-radius: 15px;
-            color: white;
-            animation: fadeIn 0.5s ease-in-out forwards;
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            padding: 25px;
+            border-radius: 18px;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(253,160,133,0.4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
         }
-        #timer-display { font-size: 48px; font-weight: bold; margin: 10px 0; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        #timer-display { font-size: 64px; font-weight: calc(700); margin: 10px 0; font-family: monospace; }
+        .clear-btn { background: #e53e3e; margin-top: 10px; padding: 8px 15px; font-size: 14px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>AI 語音助理</h1>
+    <h1>AI 語音助理 (記憶升級版)</h1>
     <button id="speak-btn">🎤 按下開始對話</button>
-    <div class="status" id="status-text">準備就緒，點擊按鈕說話...</div>
-    <div class="response" id="response-text"></div>
+    <div class="status" id="status-text">點擊按鈕，對我說話吧！</div>
+    <div class="response" id="response-text">AI 助理聊天紀錄與答案會顯示在這裡...</div>
 
     <div id="challenge-page">
-        <h3>🏆 挑戰頁面已開啟 🏆</h3>
-        <div id="timer-display">10</div>
-        <p>倒數計時中，加油！</p>
+        <h3>🏆 挑戰開始 🏆</h3>
+        <div id="timer-display">00:00</div>
+        <p id="challenge-tip">倒數計時中，專注完成目標！</p>
     </div>
+    
+    <button class="clear-btn" id="clear-btn">🧹 清除 AI 記憶</button>
 </div>
 
 <script>
     const speakBtn = document.getElementById('speak-btn');
+    const clearBtn = document.getElementById('clear-btn');
     const statusText = document.getElementById('status-text');
     const responseText = document.getElementById('response-text');
     const challengePage = document.getElementById('challenge-page');
     const timerDisplay = document.getElementById('timer-display');
 
     let countdownTimer;
+    
+    // 🧠 核心：建立對話記憶庫（把大腦說明書當作第一筆記憶）
+    const systemInstruction = "你是一個有智慧的手機語音助理，你具有連貫記憶，能記得和使用者之前的對話。當使用者想要『開啟計時器』、『倒數』時，你必須先估算或抓取他想計時的時間（請全部換算成秒數），並嚴格按照格式只回答：`[TIMER:秒數]`。例如：使用者說計時1分鐘，你回答`[TIMER:60]`；使用者說倒數10秒，你回答`[TIMER:10]`。如果使用者問其他常識（如最長的河），請根據上下文正常用繁體中文聊天回答。";
+    
+    let chatHistory = [
+        { role: "system", content: systemInstruction }
+    ];
 
-    // 檢查瀏覽器是否支援語音辨識與語音合成
+    // 語音辨識與合成設定
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        statusText.innerText = "抱歉，您的瀏覽器不支援語音辨識，請使用 Chrome 或 Safari。";
-        speakBtn.style.display = 'none';
-    }
-
     const recognition = new SpeechRecognition();
-    recognition.lang = 'zh-TW'; // 設定辨識語言
+    recognition.lang = 'zh-TW';
     recognition.interimResults = false;
 
-    // 讓手機/電腦說話的函數
     function speak(text) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'zh-TW';
         window.speechSynthesis.speak(utterance);
     }
 
-    // 啟動計時器挑戰的函數
-    function startTimerChallenge() {
+    // 格式化時間顯示 (例如把 75 秒變成 01:15)
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const secs = (seconds % 60).toString().padStart(2, '0');
+        return `${mins}:${secs}`;
+    }
+
+    // 啟動動態計時器挑戰
+    function startTimerChallenge(seconds) {
         challengePage.style.display = 'block';
-        let timeLeft = 10; // 設定倒數 10 秒挑戰
-        timerDisplay.innerText = timeLeft;
+        let timeLeft = seconds;
+        timerDisplay.innerText = formatTime(timeLeft);
 
         clearInterval(countdownTimer);
         countdownTimer = setInterval(() => {
             timeLeft--;
-            timerDisplay.innerText = timeLeft;
+            timerDisplay.innerText = formatTime(timeLeft);
             if (timeLeft <= 0) {
                 clearInterval(countdownTimer);
-                speak("挑戰時間到！");
-                alert("時間到！挑戰結束！");
+                speak("挑戰時間到！你太棒了！");
+                alert("⏰ 時間到！挑戰結束！");
+                challengePage.style.display = 'none';
             }
         }, 1000);
     }
 
-    // 點擊按鈕觸發語音聽寫
+    // 按鈕點擊事件
     speakBtn.addEventListener('click', () => {
-        // 先隱藏上一次的計時器
-        challengePage.style.display = 'none';
-        clearInterval(countdownTimer);
-        responseText.innerText = "";
-        
-        statusText.innerText = "正在聆聽中...請說話...";
+        responseText.innerText = "正在聆聽...";
         recognition.start();
     });
 
-    // 當語音辨識成功拿到文字後
+    // 清除記憶按鈕
+    clearBtn.addEventListener('click', () => {
+        chatHistory = [{ role: "system", content: systemInstruction }];
+        responseText.innerText = "記憶已清除！";
+        statusText.innerText = "我的大腦重開機囉。";
+        challengePage.style.display = 'none';
+        clearInterval(countdownTimer);
+    });
+
+    // 語音辨識成功
     recognition.onresult = async (event) => {
         const userQuery = event.results[0][0].transcript;
         statusText.innerText = `你說：「${userQuery}」`;
         responseText.innerText = "AI 思考中...";
 
-        // 給 Puter.js AI 的大腦說明書 (System Prompt)
-        const systemPrompt = "你是一個智慧語音助理。當使用者想要『開啟計時器』、『倒數』或相關挑戰時，你必須而且只能回答 `[TIMER]` 這七個字，絕對不能有其他字。如果使用者問其他生活常識或百科問題（例如最長的河流），請正常用繁體中文回答。";
+        // 1. 把使用者的話塞進歷史紀錄，讓 AI 產生記憶連貫性
+        chatHistory.push({ role: "user", content: userQuery });
 
         try {
-            // 呼叫 Puter.js 免費的 AI 聊天功能
-            const response = await puter.ai.chat(
-                `${systemPrompt}\n\n使用者說：${userQuery}`
-            );
-
+            // 2. 呼叫 Puter.js AI (這次直接把整串對話歷史紀錄丟過去！)
+            const response = await puter.ai.chat(chatHistory);
             const aiAnswer = response.toString().trim();
 
-            // 判斷 AI 回傳的是不是秘密暗號
-            if (aiAnswer.includes('[TIMER]')) {
-                responseText.innerText = "收到指令！";
-                statusText.innerText = "已成功觸發計時器！";
-                speak("挑戰頁面已開啟計時器！");
-                startTimerChallenge();
+            // 3. 檢查 AI 是否吐出計時器暗號 (例如 [TIMER:60])
+            const timerMatch = aiAnswer.match(/\[TIMER:(\d+)\]/);
+
+            if (timerMatch) {
+                const seconds = parseInt(timerMatch[1], 10);
+                responseText.innerText = `收到指令：開啟計時器 ${seconds} 秒！`;
+                
+                // 換算成好聽的語音回答
+                let replyText = `挑戰頁面已開啟計時器，開始倒數 ${seconds} 秒。`;
+                if(seconds >= 60) {
+                    replyText = `挑戰頁面已開啟計時器，開始倒數 ${Math.floor(seconds/60)} 分鐘。`;
+                }
+                speak(replyText);
+                startTimerChallenge(seconds);
+                
+                // 同時把 AI 的這個動作塞回歷史紀錄
+                chatHistory.push({ role: "assistant", content: `已為使用者開啟 ${seconds} 秒計時器` });
             } else {
-                // 如果是百科問題，直接秀出答案並讀出來
+                // 4. 普通對話，直接秀出並發聲
                 responseText.innerText = aiAnswer;
                 speak(aiAnswer);
+                // 把 AI 的回答塞進歷史紀錄，下次它才記得自己說過什麼
+                chatHistory.push({ role: "assistant", content: aiAnswer });
             }
 
         } catch (error) {
             console.error(error);
-            responseText.innerText = "糟糕，AI 大腦連線失敗。";
+            responseText.innerText = "AI 大腦連線失敗。";
         }
     };
 
-    // 辨識出錯時處理
     recognition.onerror = () => {
-        statusText.innerText = "沒聽清楚，請再按一次按鈕試試看。";
-        responseText.innerText = "";
+        statusText.innerText = "沒聽清楚，請再試一次。";
     };
 </script>
 
